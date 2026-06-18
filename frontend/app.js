@@ -1,869 +1,837 @@
 /**
- * @fileoverview Footprint — AI Carbon Tracker frontend application logic.
+ * @fileoverview Footprint — EcoTrack-style complete app logic
  *
- * Responsibilities:
- *  1. Natural-language activity form: validation, submission, loading states.
- *  2. Real-time dashboard rendering: CO₂ score ring, category bars, habit analysis.
- *  3. Actionable gamification: interactive tip checklist, savings banner, celebration.
- *  4. Data visualisation: Chart.js bar chart (weekly trend) + doughnut (categories).
- *  5. Persistence: localStorage for weekly history and streak tracking.
- *  6. Accessibility: ARIA live regions, keyboard navigation, focus management.
- *
- * @module FootprintApp
+ * Sections:
+ *  1. Config & state
+ *  2. Persistence (localStorage)
+ *  3. Toast
+ *  4. Form / API
+ *  5. Dashboard rendering (top stats, trackers)
+ *  6. Action Tracker Hub (checklist + custom commitments)
+ *  7. Badge Milestones
+ *  8. Weekly Trends chart
+ *  9. Semi-circle Annual Footprint chart
+ * 10. Interactive Assessment sliders
+ * 11. Voice Assistant (Web Speech API)
+ * 12. Gemini AI Advisor (re-summarise habit_analysis)
+ * 13. Init
  */
 
 'use strict';
 
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
+// ═══════════════════════════════════════════════════════════════
+// 1. CONFIG & CONSTANTS
+// ═══════════════════════════════════════════════════════════════
 
-/** @const {string} Base URL for the FastAPI backend API. */
-const API_BASE = 'http://127.0.0.1:8000';
+const API_BASE     = 'http://127.0.0.1:8000';
+const LS_WEEKLY    = 'fp_eco_weekly_v1';
+const LS_STREAK    = 'fp_eco_streak_v1';
+const LS_LAST      = 'fp_eco_last_v1';
+const LS_ACTIONS   = 'fp_eco_actions_v1';
+const LS_CUSTOM    = 'fp_eco_custom_v1';
+const LS_ASSESS    = 'fp_eco_assess_v1';
+const LS_TOURED    = 'fp_eco_toured_v1';
+const TREE_ABSORB  = 21.8;   // kg CO₂ / year / tree
+const US_AVG       = 16.0;   // tons/year
 
-/** @const {number} Global average daily CO₂ (kg) for gauge calibration. */
-const GLOBAL_AVG_CO2 = 11;
-
-/** @const {string} localStorage key for 7-day rolling CO₂ history. */
-const LS_WEEKLY = 'fp_weekly_v2';
-
-/** @const {string} localStorage key for streak count. */
-const LS_STREAK = 'fp_streak_v2';
-
-/** @const {string} localStorage key for last log date. */
-const LS_LAST_DATE = 'fp_last_date_v2';
-
-// ---------------------------------------------------------------------------
-// Example prompt texts keyed by data-example attribute
-// ---------------------------------------------------------------------------
-
-/** @type {Record<string, string>} */
+// Example quick fills
 const EXAMPLES = {
-  'car-burger':
-    'I drove 15km to work and back in a petrol car. Had a beef burger for lunch and chicken pasta for dinner.',
-  'cycle-vegan':
-    'Cycled 8km to the office. Had a vegan salad for lunch and a plant-based curry for dinner. Watched 2 hours of Netflix.',
-  'flight':
-    'Took a long-haul flight from London to New York in economy class (7 hour flight). Had a chicken meal on the plane.',
-  'wfh-ac':
-    'Worked from home all day with air conditioning on for 8 hours. Had a vegetarian pasta for lunch and a beef steak for dinner.',
+  'car-burger':  'Drove 15km to work and back in a petrol car. Had a beef burger for lunch and chicken pasta for dinner. Watched Netflix 2 hours.',
+  'cycle-vegan': 'Cycled 8km to the office. Vegan salad for lunch and plant-based curry for dinner. Charged laptop for 5 hours.',
+  'flight':      'Long-haul flight London to New York economy class (7 hours). Chicken meal on the plane, vegan dinner in the evening.',
+  'wfh-ac':      'Worked from home all day with air conditioning on for 8 hours. Vegetarian pasta lunch. Beef steak dinner. Dishwasher once.',
 };
 
-// ---------------------------------------------------------------------------
-// Category display configuration
-// ---------------------------------------------------------------------------
-
-/** @type {Record<string, {label: string, color: string, icon: string}>} */
-const CATEGORY_CFG = {
-  food:      { label: 'Food & Diet',  color: '#f97316', icon: '🍔' },
-  transport: { label: 'Transport',    color: '#0ea5e9', icon: '🚗' },
-  energy:    { label: 'Home Energy',  color: '#a855f7', icon: '⚡' },
-  other:     { label: 'Other',        color: '#64748b', icon: '🌍' },
+// Category colours matching the EcoTrack palette
+const CAT_CLR = {
+  food:      { color:'#ff7043', bg:'rgba(255,112,67,.12)',  label:'Food & Diet'  },
+  transport: { color:'#40c4ff', bg:'rgba(64,196,255,.12)',  label:'Transport'    },
+  energy:    { color:'#a855f7', bg:'rgba(168,85,247,.12)',  label:'Home Energy'  },
+  other:     { color:'#64748b', bg:'rgba(100,116,139,.12)', label:'Other'        },
 };
 
-// ============================================================================
-// DOM REFERENCES (cached once)
-// ============================================================================
+// Assessment sliders default config
+const ASSESS_DEFAULT = [
+  { id:'a-transport', label:'Transportation',  sub:'Personal vehicle & public transit',   unit:'Tons/Yr', min:0, max:6,   step:.1, val:2.8, color:'#40c4ff' },
+  { id:'a-food',      label:'Food & Diet',      sub:'Diet type, meat consumption, food waste', unit:'Tons/Yr', min:0, max:5,   step:.1, val:1.8, color:'#ff7043' },
+  { id:'a-energy',    label:'Home Energy',      sub:'Electricity & heating bills',         unit:'Tons/Yr', min:0, max:6,   step:.1, val:3.2, color:'#a855f7' },
+  { id:'a-shopping',  label:'Shopping & Goods', sub:'Clothing, electronics, consumables',  unit:'Tons/Yr', min:0, max:4,   step:.1, val:1.4, color:'#ffab40' },
+  { id:'a-waste',     label:'Waste & Services', sub:'Landfill, recycling, water usage',    unit:'Tons/Yr', min:0, max:3,   step:.1, val:1.2, color:'#ce93d8' },
+  { id:'a-flight',    label:'Air Travel',        sub:'Domestic & international flights',   unit:'Tons/Yr', min:0, max:5,   step:.1, val:0.5, color:'#26c6da' },
+];
 
-/** @param {string} sel @returns {Element|null} */
-const $  = (sel) => document.querySelector(sel);
-/** @param {string} sel @returns {NodeList} */
-const $$ = (sel) => document.querySelectorAll(sel);
+// Badge definitions
+const BADGES = [
+  { id:'pledge',   icon:'🌐', color:'#5c6bc0', bg:'rgba(92,107,192,.15)', title:'PLEDGE PIONEER',   sub:'CALCULATE FOOTPRINT',  req:'Submit your first carbon footprint analysis.',     cond: s => s.totalLogs >= 1,           saving: 0   },
+  { id:'eco-nov',  icon:'💚', color:'#00c853', bg:'rgba(0,200,83,.15)',   title:'ECO NOVICE',       sub:'1+ COMMITTED HABIT',   req:'Commit to at least one daily eco-action.',         cond: s => s.checkedActions >= 1,      saving: 0   },
+  { id:'habit',    icon:'🔥', color:'#ff7043', bg:'rgba(255,112,67,.15)', title:'HABIT WARRIOR',    sub:'STREAK >= 5 DAYS',     req:'Maintain a carbon-savvy active streak of 5+ days.',cond: s => s.streak >= 5,             saving: 0   },
+  { id:'carbon-c', icon:'🛡️', color:'#ec407a', bg:'rgba(236,64,122,.15)', title:'CARBON CRUSADER',  sub:'SAVE >= 0.5 TONS/YR',  req:'Hit an annual carbon offset rate of over 0.5T.',   cond: s => s.annualSaved >= 0.5,      saving: .5  },
+  { id:'champion', icon:'🏆', color:'#ffab40', bg:'rgba(255,171,64,.15)', title:'CLIMATE CHAMPION', sub:'SAVE >= 1.5 TONS/YR',  req:'Achieve direct savings of 1.5 tons of annual offsets.', cond: s => s.annualSaved >= 1.5, saving: 1.5 },
+  { id:'forest',   icon:'🌳', color:'#00e676', bg:'rgba(0,230,118,.15)',  title:'FOREST GUARDIAN',  sub:'TREES POWER >= 40/YR', req:'Equivalent saving potential matches 40+ growing saplings.', cond: s => s.treePower >= 40, saving: 0   },
+  { id:'titan',    icon:'⚡', color:'#78909c', bg:'rgba(120,144,156,.12)',title:'GREEN TITAN',      sub:'15+ STREAK & 1.0T+ SAVED', req:'Ultimate: 15+ day streak and 1.0 ton CO₂e annual offsets.',cond: s => s.streak>=15 && s.annualSaved>=1, saving:1},
+];
 
-const dom = {
-  form:             /** @type {HTMLFormElement}        */ ($('#activity-form')),
-  textarea:         /** @type {HTMLTextAreaElement}    */ ($('#activity-input')),
-  charCounter:      /** @type {HTMLElement}            */ ($('#char-counter')),
-  inputError:       /** @type {HTMLElement}            */ ($('#input-error')),
-  submitBtn:        /** @type {HTMLButtonElement}      */ ($('#submit-btn')),
-  submitLabel:      /** @type {HTMLElement}            */ ($('#submit-label')),
-  submitIcon:       /** @type {SVGElement}             */ ($('#submit-icon')),
-  loadingStatus:    /** @type {HTMLElement}            */ ($('#loading-status')),
-  dashboard:        /** @type {HTMLElement}            */ ($('#dashboard')),
-  scoreRing:        /** @type {HTMLElement}            */ ($('#score-ring')),
-  co2Value:         /** @type {HTMLElement}            */ ($('#co2-value')),
-  co2Label:         /** @type {HTMLElement}            */ ($('#co2-label')),
-  co2GaugeFill:     /** @type {HTMLElement}            */ ($('#co2-gauge-fill')),
-  co2GaugeWrapper:  /** @type {HTMLElement}            */ ($('#co2-gauge-wrapper')),
-  weeklyAvg:        /** @type {HTMLElement}            */ ($('#weekly-avg')),
-  potentialSaved:   /** @type {HTMLElement}            */ ($('#potential-saved')),
-  habitText:        /** @type {HTMLElement}            */ ($('#habit-text')),
-  categoryBars:     /** @type {HTMLElement}            */ ($('#category-bars')),
-  tipsList:         /** @type {HTMLElement}            */ ($('#tips-list')),
-  tipsProgressText: /** @type {HTMLElement}            */ ($('#tips-progress-text')),
-  tipsProgressBar:  /** @type {HTMLElement}            */ ($('#tips-progress-bar')),
-  savingsBanner:    /** @type {HTMLElement}            */ ($('#savings-banner')),
-  totalSavings:     /** @type {HTMLElement}            */ ($('#total-savings')),
-  treesEquivalent:  /** @type {HTMLElement}            */ ($('#trees-equivalent')),
-  allDoneBanner:    /** @type {HTMLElement}            */ ($('#all-done-banner')),
-  weeklyChart:      /** @type {HTMLCanvasElement}      */ ($('#weekly-chart')),
-  donutChart:       /** @type {HTMLCanvasElement}      */ ($('#donut-chart')),
-  toast:            /** @type {HTMLElement}            */ ($('#toast')),
-  streakBadge:      /** @type {HTMLElement}            */ ($('#streak-badge')),
-  streakCount:      /** @type {HTMLElement}            */ ($('#streak-count')),
-  chips:            $$('[data-example]'),
-};
+// ═══════════════════════════════════════════════════════════════
+// 2. STATE
+// ═══════════════════════════════════════════════════════════════
 
-// ============================================================================
-// STATE
-// ============================================================================
-
-/**
- * @typedef {Object} Tip
- * @property {string} id
- * @property {string} title
- * @property {string} description
- * @property {number} co2_saving
- */
-
-/**
- * @typedef {Object} AppState
- * @property {number[]}    weeklyData    - 7-element rolling daily CO₂ history.
- * @property {Set<string>} completedTips - IDs of currently completed tips.
- * @property {Tip[]}       currentTips   - Tips from the latest API response.
- * @property {Chart|null}  barChart      - Chart.js bar chart instance.
- * @property {Chart|null}  donutChart    - Chart.js doughnut chart instance.
- * @property {boolean}     isLoading     - Whether an API request is in-flight.
- */
-
-/** @type {AppState} */
 const state = {
-  weeklyData:    _loadWeeklyData(),
-  completedTips: new Set(),
-  currentTips:   [],
-  barChart:      null,
-  donutChart:    null,
-  isLoading:     false,
+  weeklyData:   loadLS(LS_WEEKLY, Array(7).fill(0)),
+  streak:       +loadLS(LS_STREAK, 0),
+  lastDate:     loadLS(LS_LAST, ''),
+  checkedIds:   new Set(loadLS(LS_ACTIONS, [])),
+  customActions:[],
+  currentTips:  [],
+  lastAnalysis: null,
+  assessVals:   loadLS(LS_ASSESS, ASSESS_DEFAULT.map(a => a.val)),
+  totalLogs:    +loadLS('fp_total_logs', 0),
+  barChart:     null,
+  donutChart:   null,
+  footChart:    null,
+  speechActive: false,
+  utterance:    null,
 };
 
-// ============================================================================
-// PERSISTENCE HELPERS
-// ============================================================================
+// ═══════════════════════════════════════════════════════════════
+// 3. UTILITIES
+// ═══════════════════════════════════════════════════════════════
 
-/**
- * Load the last 7 days of CO₂ data from localStorage.
- * Returns a 7-element zeros array if nothing is stored or data is invalid.
- *
- * @returns {number[]}
- */
-function _loadWeeklyData() {
-  try {
-    const raw = localStorage.getItem(LS_WEEKLY);
-    if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr) && arr.length === 7 && arr.every(v => typeof v === 'number')) {
-        return arr;
-      }
-    }
-  } catch (_) { /* ignore parse errors */ }
-  return Array(7).fill(0);
+function loadLS(key, def) {
+  try { const v = JSON.parse(localStorage.getItem(key)); return v !== null ? v : def; }
+  catch(_) { return def; }
 }
+function saveLS(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 
-/** Persist current weekly data to localStorage. */
-function _saveWeeklyData() {
-  localStorage.setItem(LS_WEEKLY, JSON.stringify(state.weeklyData));
-}
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+function $id(id) { return document.getElementById(id); }
 
-/**
- * Update the daily streak counter and refresh the header badge.
- * - Increments if the last log was yesterday.
- * - Resets to 1 if the gap is > 1 day.
- * - Unchanged if the user already logged today.
- */
-function _updateStreak() {
-  const today = new Date().toDateString();
-  const lastDate = localStorage.getItem(LS_LAST_DATE) || '';
-  let streak = parseInt(localStorage.getItem(LS_STREAK) || '0', 10);
+function fmt(n, dec=2) { return (+n).toFixed(dec); }
 
-  if (!lastDate) {
-    streak = 1;
-  } else if (lastDate === today) {
-    // Already logged today — no change
-  } else {
-    const diffMs = new Date(today).getTime() - new Date(lastDate).getTime();
-    const diffDays = Math.round(diffMs / 86_400_000);
-    streak = diffDays === 1 ? streak + 1 : 1;
-  }
+// ═══════════════════════════════════════════════════════════════
+// 4. TOAST
+// ═══════════════════════════════════════════════════════════════
 
-  localStorage.setItem(LS_STREAK, String(streak));
-  localStorage.setItem(LS_LAST_DATE, today);
-
-  dom.streakCount.textContent = streak;
-  const show = streak >= 2;
-  dom.streakBadge.classList.toggle('hidden',   !show);
-  dom.streakBadge.classList.toggle('flex',      show);
-  dom.streakBadge.classList.toggle('inline-flex', show);
-}
-
-// ============================================================================
-// TOAST NOTIFICATIONS
-// ============================================================================
-
-/** @type {ReturnType<typeof setTimeout>|null} */
-let _toastTimer = null;
-
-/**
- * Show an accessible, auto-dismissing toast notification.
- *
- * @param {string} message                               - Text to display.
- * @param {'success'|'error'|'info'} [type='success']   - Visual style.
- * @param {number} [duration=3200]                       - Auto-dismiss delay (ms).
- */
-function showToast(message, type = 'success', duration = 3200) {
+let _tt;
+function toast(msg, type='success', ms=3000) {
   const styles = {
-    success: 'background:rgba(34,197,94,0.15); border:1.5px solid rgba(34,197,94,0.3); color:#4ade80',
-    error:   'background:rgba(239,68,68,0.15); border:1.5px solid rgba(239,68,68,0.3); color:#f87171',
-    info:    'background:rgba(96,165,250,0.15); border:1.5px solid rgba(96,165,250,0.3); color:#93c5fd',
+    success: 'background:#0e2115;border:1px solid rgba(0,230,118,.3);color:#4ade80',
+    error:   'background:#1a0b0b;border:1px solid rgba(239,83,80,.3);color:#f87171',
+    info:    'background:#0b1620;border:1px solid rgba(64,196,255,.3);color:#93c5fd',
   };
-  dom.toast.setAttribute('style',
-    `position:fixed;bottom:28px;right:28px;z-index:9999;padding:14px 22px;border-radius:14px;font-size:.88rem;font-weight:600;max-width:360px;${styles[type]}`
-  );
-  dom.toast.textContent = message;
-  dom.toast.classList.add('visible');
-
-  if (_toastTimer) clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => dom.toast.classList.remove('visible'), duration);
+  $id('toast').setAttribute('style',
+    `position:fixed;bottom:24px;right:24px;z-index:9999;padding:11px 18px;border-radius:10px;font-size:.83rem;font-weight:600;max-width:340px;backdrop-filter:blur(16px);${styles[type]}`);
+  $id('toast').textContent = msg;
+  $id('toast').classList.add('show');
+  clearTimeout(_tt);
+  _tt = setTimeout(() => $id('toast').classList.remove('show'), ms);
 }
 
-// ============================================================================
-// LOADING STATE
-// ============================================================================
+// ═══════════════════════════════════════════════════════════════
+// 5. FORM / API
+// ═══════════════════════════════════════════════════════════════
 
-/**
- * Toggle the submit button between idle and loading states.
- *
- * @param {boolean} loading
- */
-function setLoadingState(loading) {
-  state.isLoading = loading;
-  dom.submitBtn.classList.toggle('loading', loading);
-  dom.submitBtn.setAttribute('aria-busy', String(loading));
-  dom.loadingStatus.classList.toggle('hidden', !loading);
-  dom.loadingStatus.style.display = loading ? 'flex' : '';
-  dom.submitLabel.textContent = loading ? 'Analysing…' : 'Analyse My Footprint';
+function setLoading(on) {
+  $id('log-submit').setAttribute('aria-busy', on);
+  $id('log-btn-label').textContent = on ? '⏳ ANALYSING WITH AI…' : '⚡ ANALYSE WITH GEMINI AI';
+  $id('log-submit').style.opacity  = on ? '.7' : '1';
+  $id('api-status').textContent    = on ? '⏳ PROCESSING' : '● AI READY';
+  $id('log-submit').disabled = on;
+}
+function setErr(msg) {
+  $id('log-error').textContent = msg;
+  $id('log-error').classList.toggle('hidden', !msg);
+  $id('log-input').setAttribute('aria-invalid', !!msg);
 }
 
-// ============================================================================
-// INPUT VALIDATION UI
-// ============================================================================
+async function handleSubmit(e) {
+  e.preventDefault();
+  const text = $id('log-input').value.trim();
+  if (!text || text.length < 5) { setErr('Please describe at least one activity (min 5 chars).'); $id('log-input').focus(); return; }
+  if (text.length > 500)        { setErr('Max 500 characters.'); return; }
+  setErr(''); setLoading(true);
 
-/**
- * Show or clear a validation error on the textarea.
- *
- * @param {string} message - Error text, or '' to clear.
- */
-function setInputError(message) {
-  dom.inputError.textContent = message;
-  dom.inputError.classList.toggle('hidden', !message);
-  dom.textarea.setAttribute('aria-invalid', message ? 'true' : 'false');
+  try {
+    const res = await fetch(`${API_BASE}/api/logs/analyse`, {
+      method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body: JSON.stringify({ activity_text: text }),
+    });
+    if (!res.ok) { const e = await res.json().catch(()=>{}); throw new Error(e?.detail || `Error ${res.status}`); }
+    const data = await res.json();
+
+    state.lastAnalysis = data;
+    state.totalLogs++;
+    saveLS('fp_total_logs', state.totalLogs);
+
+    // Push to weekly data
+    state.weeklyData = [...state.weeklyData.slice(1), data.estimated_co2];
+    saveLS(LS_WEEKLY, state.weeklyData);
+
+    updateStreak();
+    loadTips(data.actionable_tips, data.categories, data.estimated_co2);
+    renderTopStats();
+    renderTrackers();
+    renderBadges();
+    renderTrendChart();
+    renderFootprintChart(data.categories, data.estimated_co2);
+    renderInsightsReady(data.habit_analysis);
+
+    toast('✨ Analysis complete! Scroll down to explore your dashboard.', 'success');
+
+    // Scroll to tracker hub
+    setTimeout(() => $id('tracker').scrollIntoView({ behavior:'smooth', block:'start' }), 150);
+
+  } catch(err) {
+    const msg = err.message?.includes('fetch') ? '⚠️ Backend offline? Start FastAPI on port 8000.' : `❌ ${err.message}`;
+    toast(msg, 'error', 5000); setErr(err.message);
+  } finally {
+    setLoading(false);
+  }
 }
 
-// ============================================================================
-// SCORE RING
-// ============================================================================
+// ═══════════════════════════════════════════════════════════════
+// 6. STREAK
+// ═══════════════════════════════════════════════════════════════
 
-/**
- * Render the conic-gradient CO₂ score ring with animated number counter.
- *
- * @param {number} co2 - Total CO₂ in kg CO₂e.
- */
-function renderScoreRing(co2) {
-  // Clamp percentage to a 2× global average ceiling
-  const pct = Math.min((co2 / (GLOBAL_AVG_CO2 * 2)) * 100, 100);
-
-  // Pick colour + glow based on severity
-  let ringColor, ringGlow, label, labelColor;
-  if (co2 < 4) {
-    ringColor = '#22c55e'; ringGlow = 'rgba(34,197,94,0.35)';
-    label = '🌿 Low — great job!'; labelColor = '#4ade80';
-  } else if (co2 < 8) {
-    ringColor = '#f59e0b'; ringGlow = 'rgba(245,158,11,0.35)';
-    label = '⚡ Moderate — room to improve'; labelColor = '#fbbf24';
-  } else if (co2 < 15) {
-    ringColor = '#f97316'; ringGlow = 'rgba(249,115,22,0.35)';
-    label = '🔥 High — let\'s take action'; labelColor = '#fb923c';
-  } else {
-    ringColor = '#ef4444'; ringGlow = 'rgba(239,68,68,0.35)';
-    label = '🚨 Very high — urgent action!'; labelColor = '#f87171';
+function updateStreak() {
+  const today = new Date().toDateString();
+  if (state.lastDate !== today) {
+    const diff = state.lastDate
+      ? Math.round((new Date(today) - new Date(state.lastDate)) / 86400000)
+      : 999;
+    state.streak = diff === 1 ? state.streak + 1 : 1;
+    state.lastDate = today;
+    saveLS(LS_STREAK, state.streak);
+    saveLS(LS_LAST, today);
   }
 
-  dom.scoreRing.style.setProperty('--pct', `${pct.toFixed(1)}%`);
-  dom.scoreRing.style.setProperty('--ring-color', ringColor);
-  dom.scoreRing.style.setProperty('--ring-glow', ringGlow);
-
-  // Animated number count-up
-  const startVal = parseFloat(dom.co2Value.textContent) || 0;
-  const endVal   = co2;
-  const dur      = 900;
-  const t0       = performance.now();
-
-  const tick = (now) => {
-    const progress = Math.min((now - t0) / dur, 1);
-    const eased    = 1 - (1 - progress) ** 3; // ease-out cubic
-    dom.co2Value.textContent = (startVal + (endVal - startVal) * eased).toFixed(1);
-    if (progress < 1) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-
-  // Gauge fill
-  const gaugeW = Math.min((co2 / GLOBAL_AVG_CO2) * 100, 100);
-  dom.co2GaugeFill.style.width     = `${gaugeW}%`;
-  dom.co2GaugeFill.style.background = ringColor;
-  dom.co2GaugeWrapper.setAttribute('aria-valuenow', String(Math.round(gaugeW)));
-
-  // Label
-  dom.co2Label.textContent  = label;
-  dom.co2Label.style.color  = labelColor;
+  const badge = $id('streak-badge');
+  $id('streak-val').textContent = state.streak;
+  if (state.streak >= 2) { badge.classList.remove('hidden'); badge.style.display = 'inline-flex'; }
 }
 
-// ============================================================================
-// MINI STATS
-// ============================================================================
+// ═══════════════════════════════════════════════════════════════
+// 7. TOP STATS
+// ═══════════════════════════════════════════════════════════════
 
-/**
- * Update the "Weekly Avg" and "Potential Saved" mini stat cards.
- *
- * @param {number[]} weeklyData - 7-element array of daily CO₂ values.
- * @param {Tip[]}    tips       - Current actionable tips.
- */
-function renderMiniStats(weeklyData, tips) {
-  const nonZero = weeklyData.filter(v => v > 0);
-  const avg     = nonZero.length > 0
-    ? (nonZero.reduce((a, b) => a + b, 0) / nonZero.length).toFixed(1)
-    : '—';
-  dom.weeklyAvg.textContent = avg !== '—' ? avg : '—';
-
-  const saved = tips.reduce((acc, t) => acc + (t.co2_saving || 0), 0);
-  dom.potentialSaved.textContent = saved.toFixed(1);
+function getDailyKg() {
+  return [...state.currentTips, ...state.customActions]
+    .filter(t => state.checkedIds.has(t.id))
+    .reduce((a,t) => a + (t.co2_saving||0), 0);
 }
 
-// ============================================================================
-// CATEGORY BARS
-// ============================================================================
+function renderTopStats() {
+  const dailyKg  = getDailyKg();
+  const annualT  = (dailyKg * 365) / 1000;
+  const trees    = Math.round((dailyKg * 365) / TREE_ABSORB);
 
-/**
- * Render animated horizontal category emission bars.
- *
- * @param {{food:number, transport:number, energy:number, other:number}} cats
- * @param {number} total - Total CO₂ for percentage calculation.
- */
-function renderCategoryBars(cats, total) {
-  const entries = Object.entries(cats)
-    .filter(([, v]) => v > 0)
-    .sort(([, a], [, b]) => b - a);
+  $id('stat-offset').textContent = fmt(annualT, 3);
+  $id('stat-trees').textContent  = trees;
+  $id('stat-streak').textContent = state.streak;
+  $id('stat-streak-sub').textContent = state.streak >= 5 ? `${state.streak} active habits` : state.streak >= 1 ? 'Keep it up!' : 'Start your streak!';
 
-  if (entries.length === 0) {
-    dom.categoryBars.innerHTML = '<p class="text-sm text-slate-500 italic">No data yet.</p>';
+  // Daily savings display in hub
+  $id('daily-savings').textContent = fmt(dailyKg, 1);
+  $id('annual-savings').textContent = `−${fmt(annualT, 2)} Tons Saved/Year`;
+
+  // Climate standing
+  let standing = 'Getting Started';
+  if (annualT >= 2)   standing = 'Active Reducer 🌿';
+  if (annualT >= 5)   standing = 'Climate Champion 🏆';
+  if (annualT >= 0.5 && annualT < 2) standing = 'Eco Committed ✅';
+  $id('stat-standing').textContent = standing;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 8. TRACKERS ROW
+// ═══════════════════════════════════════════════════════════════
+
+function renderTrackers() {
+  const all   = [...state.currentTips, ...state.customActions];
+  const done  = all.filter(t => state.checkedIds.has(t.id)).length;
+  const total = all.length;
+  const pct   = total > 0 ? Math.round(done / total * 100) : 0;
+
+  $id('habits-done').textContent = done;
+  $id('habits-total').textContent = total;
+  $id('habit-fill').style.width  = `${pct}%`;
+  $id('habit-pct').textContent   = `${pct}%`;
+
+  const label = pct === 100 ? '🎉 All actions done — Eco Hero!' :
+                pct >= 50   ? '🌿 Climate Advocate — Actively mitigating carbon.' :
+                pct > 0     ? '🌱 Getting started — keep going!' :
+                              '⏳ No actions checked yet.';
+  $id('habit-label').textContent = label;
+
+  const dailyKg = getDailyKg();
+  $id('habit-summary').textContent = total
+    ? `Your active offset commitments prevent ${fmt(dailyKg,1)} Kg of carbon daily, or ${fmt(dailyKg*365/1000,3)} Tons of greenhouse gases annually.`
+    : 'Check off eco-actions below to see your real-time CO₂ reductions.';
+
+  // Reduction tracker
+  if (state.lastAnalysis) {
+    const co2 = state.lastAnalysis.estimated_co2;
+    const annualT = (co2 * 365) / 1000;
+    $id('reduction-score').textContent = fmt(annualT, 1) + 'T';
+    const pctOfUs = Math.min(annualT / US_AVG * 100, 100);
+    $id('reduction-marker').style.left = `${pctOfUs}%`;
+    const status = annualT > 10 ? 'Status: Above Average Emissions — Need immediate offsets.'
+                 : annualT > 5  ? 'Status: Moderate Emissions — Room to improve.'
+                 :                'Status: ✅ Below average — Great work!';
+    $id('reduction-status').textContent = status;
+    $id('reduction-status').style.color  = annualT > 10 ? '#ef5350' : annualT > 5 ? '#ffab40' : '#00e676';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 9. ACTION TRACKER HUB
+// ═══════════════════════════════════════════════════════════════
+
+const CAT_LABELS = { Transport:'Transport', Energy:'Energy', Food:'Food', Shopping:'Shopping', Other:'Other',
+                     food:'Food', transport:'Transport', energy:'Energy', other:'Other' };
+
+function loadTips(tips, cats, co2) {
+  state.currentTips = tips.map((t, i) => ({
+    ...t,
+    cat: Object.entries(cats || {}).sort(([,a],[,b])=>b-a)[i % 4]?.[0] || 'other',
+  }));
+  renderActionsList();
+  renderTopStats();
+  renderTrackers();
+}
+
+function renderActionsList() {
+  const all = [...state.currentTips, ...state.customActions];
+  const noEl = $id('no-actions');
+  const listEl = $id('actions-list');
+
+  if (all.length === 0) {
+    noEl.style.display = '';
+    listEl.innerHTML = '';
     return;
   }
+  noEl.style.display = 'none';
 
-  dom.categoryBars.innerHTML = entries.map(([key, value]) => {
-    const cfg = CATEGORY_CFG[key] || { label: key, color: '#64748b', icon: '🌍' };
-    const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+  listEl.innerHTML = all.map(t => {
+    const checked = state.checkedIds.has(t.id);
+    const catLabel = CAT_LABELS[t.cat] || t.cat || 'Other';
+    const catClr   = Object.values(CAT_CLR).find(c=>c.label.toLowerCase()===catLabel.toLowerCase())?.color || '#64748b';
     return `
-      <div class="space-y-1.5" role="group" aria-label="${cfg.label} emission bar">
-        <div class="flex justify-between items-center">
-          <span class="text-sm flex items-center gap-1.5" style="color:#94a3b8">
-            <span aria-hidden="true">${cfg.icon}</span>${cfg.label}
-          </span>
-          <span class="text-sm font-semibold text-white tabular-nums">${value.toFixed(2)} kg</span>
+      <div class="action-row${checked?' checked':''}" role="listitem" id="row-${t.id}" onclick="toggleAction('${t.id}')">
+        <input type="checkbox" class="action-check" id="chk-${t.id}"
+               data-id="${t.id}" ${checked?'checked':''} aria-label="${t.title}"
+               onchange="toggleAction('${t.id}',event)" onclick="event.stopPropagation()"/>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold leading-snug ${checked?'line-through':''}"
+               style="color:${checked?'var(--green2)':'var(--text)'}">${t.title}</div>
+          <div class="sec-label mt-0.5" style="color:${catClr}">CATEGORY: ${catLabel.toUpperCase()}</div>
         </div>
-        <div class="prog-track" role="progressbar"
-             aria-label="${cfg.label}: ${pct}% of total"
-             aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100">
-          <div class="cat-bar" style="width:0%; background:${cfg.color}"
-               data-target="${pct}"></div>
+        <div class="text-sm font-bold whitespace-nowrap tabular-nums" style="color:var(--green);font-family:'JetBrains Mono',monospace">
+          −${fmt(t.co2_saving,1)} Kg CO₂e
         </div>
       </div>`;
   }).join('');
 
-  // Animate bars after DOM insertion (RAF ensures the 0% starting width is painted first)
-  requestAnimationFrame(() => {
-    dom.categoryBars.querySelectorAll('.cat-bar').forEach(bar => {
-      const target = bar.dataset.target;
-      requestAnimationFrame(() => { bar.style.width = `${target}%`; });
-    });
-  });
+  // Re-attach listeners (already using onclick in element)
 }
 
-// ============================================================================
-// DOUGHNUT CHART
-// ============================================================================
+function toggleAction(id, e) {
+  if (e) e.preventDefault();
+  const cb = $id(`chk-${id}`);
+  const row = $id(`row-${id}`);
 
-/**
- * Initialise or update the category doughnut chart.
- *
- * @param {{food:number, transport:number, energy:number, other:number}} cats
- */
-function renderDonutChart(cats) {
-  const entries   = Object.entries(cats).filter(([, v]) => v > 0);
-  const labels    = entries.map(([k]) => CATEGORY_CFG[k]?.label || k);
-  const data      = entries.map(([, v]) => parseFloat(v.toFixed(2)));
-  const colors    = entries.map(([k]) => CATEGORY_CFG[k]?.color || '#64748b');
-  const hoverColors = colors.map(c => c + 'cc');
-
-  if (state.donutChart) {
-    state.donutChart.data.labels              = labels;
-    state.donutChart.data.datasets[0].data   = data;
-    state.donutChart.data.datasets[0].backgroundColor = colors;
-    state.donutChart.update('active');
-    return;
+  if (state.checkedIds.has(id)) {
+    state.checkedIds.delete(id);
+    if (cb) cb.checked = false;
+    row?.classList.remove('checked');
+  } else {
+    state.checkedIds.add(id);
+    if (cb) cb.checked = true;
+    row?.classList.add('checked');
+    toast('✅ Action committed! Your savings updated.', 'success', 2000);
   }
 
-  state.donutChart = new Chart(dom.donutChart, {
-    type: 'doughnut',
-    data: {
-      labels,
-      datasets: [{
-        data,
-        backgroundColor:      colors,
-        hoverBackgroundColor: hoverColors,
-        borderColor:          'rgba(13,26,46,0.8)',
-        borderWidth:          3,
-        hoverOffset:          8,
-      }],
-    },
-    options: {
-      responsive:          false,
-      cutout:              '70%',
-      plugins: {
-        legend: {
-          display:  true,
-          position: 'bottom',
-          labels: {
-            color:      '#7a8fa8',
-            font:       { family: 'Inter', size: 10 },
-            boxWidth:   10,
-            padding:    10,
-            usePointStyle: true,
-            pointStyle: 'circle',
-          },
-        },
-        tooltip: {
-          backgroundColor: '#0d1a2e',
-          borderColor:     'rgba(255,255,255,0.08)',
-          borderWidth:     1,
-          titleColor:      '#e8f0fe',
-          bodyColor:       '#7a8fa8',
-          callbacks: {
-            label: ctx => ` ${ctx.label}: ${ctx.parsed.toFixed(2)} kg CO₂e`,
-          },
-        },
-      },
-      animation: { duration: 800, easing: 'easeOutQuart' },
-    },
-  });
+  saveLS(LS_ACTIONS, [...state.checkedIds]);
+  renderTopStats();
+  renderTrackers();
+  renderBadges();
 }
 
-// ============================================================================
-// HABIT ANALYSIS
-// ============================================================================
+window.toggleAction = toggleAction;
 
-/**
- * Update the habit analysis paragraph (only if content changed).
- *
- * @param {string} text
- */
-function renderHabitAnalysis(text) {
-  if (dom.habitText.textContent !== text) {
-    dom.habitText.textContent = text;
-  }
+function addCustomAction() {
+  const desc = $id('custom-action').value.trim();
+  const cat  = $id('custom-cat').value;
+  const kg   = parseFloat($id('custom-kg').value);
+
+  if (!desc) { toast('Please enter a commitment description.', 'error'); return; }
+  if (isNaN(kg) || kg <= 0) { toast('Please enter a valid CO₂ saving value.', 'error'); return; }
+
+  const action = {
+    id:         `custom-${Date.now()}`,
+    title:      desc,
+    description: `Custom commitment: ${desc}`,
+    co2_saving: kg,
+    cat:        cat.toLowerCase(),
+  };
+
+  state.customActions.push(action);
+  $id('custom-action').value = '';
+  $id('custom-kg').value = '1';
+  renderActionsList();
+  toast(`✅ "${desc}" added to your commitments!`, 'success');
+}
+window.addCustomAction = addCustomAction;
+
+// ═══════════════════════════════════════════════════════════════
+// 10. BADGE MILESTONES
+// ═══════════════════════════════════════════════════════════════
+
+function getBadgeState() {
+  const dailyKg = getDailyKg();
+  return {
+    totalLogs:      state.totalLogs,
+    checkedActions: [...state.checkedIds].length,
+    streak:         state.streak,
+    annualSaved:    (dailyKg * 365) / 1000,
+    treePower:      Math.round((dailyKg * 365) / TREE_ABSORB),
+  };
 }
 
-// ============================================================================
-// TIPS / GAMIFICATION
-// ============================================================================
+function renderBadges() {
+  const bs       = getBadgeState();
+  const unlocked = BADGES.filter(b => b.cond(bs));
+  const count    = unlocked.length;
 
-/**
- * Render the full actionable tips checklist and savings banner.
- *
- * @param {Tip[]} tips
- */
-function renderTips(tips) {
-  state.currentTips = tips;
-  state.completedTips.clear();
+  $id('badges-count').textContent = `${count} OF ${BADGES.length} UNLOCKED`;
+  $id('badge-pct').textContent    = `${Math.round(count/BADGES.length*100)}% Completed`;
+  $id('badge-fill').style.width   = `${count/BADGES.length*100}%`;
 
-  // Savings banner
-  const totalSaving  = tips.reduce((acc, t) => acc + (t.co2_saving || 0), 0);
-  const treesPerYear = 21.8; // avg kg CO₂/year absorbed per tree
-  const trees        = Math.max(1, Math.round((totalSaving * 365) / treesPerYear));
-
-  dom.totalSavings.textContent   = `${totalSaving.toFixed(1)} kg CO₂e`;
-  dom.treesEquivalent.textContent = `${trees} tree${trees !== 1 ? 's' : ''}`;
-  dom.savingsBanner.classList.remove('hidden');
-  dom.allDoneBanner.classList.add('hidden');
-
-  // Build tip cards
-  dom.tipsList.innerHTML = tips.map((tip, i) => `
-    <li role="listitem">
-      <article
-        class="tip-card glass-bright p-5 flex gap-4 items-start animate-slide-up"
-        id="tip-card-${tip.id}"
-        aria-label="Eco tip ${i + 1} of ${tips.length}: ${tip.title}"
-        style="animation-delay:${0.05 * i}s"
-      >
-        <!-- Custom checkbox -->
-        <input
-          type="checkbox"
-          class="tip-checkbox mt-0.5"
-          id="tip-chk-${tip.id}"
-          data-tip-id="${tip.id}"
-          aria-label="Mark action '${tip.title}' as completed"
-        />
-
-        <!-- Content -->
-        <div class="flex-1 min-w-0">
-          <label
-            for="tip-chk-${tip.id}"
-            class="tip-title block font-semibold text-sm mb-1.5 cursor-pointer transition-colors"
-            style="color:#e8f0fe"
-          >${tip.title}</label>
-          <p class="text-xs leading-relaxed" style="color:#7a8fa8">${tip.description}</p>
-
-          <!-- CO₂ saving badge -->
-          <div class="flex items-center gap-1.5 mt-2.5">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="#22c55e" aria-hidden="true">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
-            </svg>
-            <span class="text-xs font-semibold" style="color:#4ade80">
-              Saves ~${tip.co2_saving.toFixed(1)} kg CO₂e
-            </span>
+  $id('badge-grid').innerHTML = BADGES.map(b => {
+    const isUnlocked = b.cond(bs);
+    return `
+      <div class="badge-card${isUnlocked?'':' locked'}" aria-label="${b.title} badge: ${isUnlocked?'Unlocked':'Locked'}">
+        <!-- Header row -->
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2.5">
+            <div class="badge-icon" style="background:${b.bg};border:1.5px solid ${isUnlocked?b.color:'#243328'}">
+              <span>${b.icon}</span>
+            </div>
+            <div>
+              <div class="sec-title" style="font-size:.6rem;color:${isUnlocked?b.color:'var(--text3)'}">${b.title}</div>
+              <div class="sec-label" style="font-size:.54rem">${b.sub}</div>
+            </div>
           </div>
+          ${isUnlocked
+            ? `<div class="badge-check" aria-label="Unlocked" title="Unlocked"><svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>`
+            : `<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="var(--muted)" stroke-width="1.5" aria-label="Locked"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>`
+          }
         </div>
 
-        <!-- Tip number badge -->
-        <div class="tip-badge" aria-hidden="true">${i + 1}</div>
-      </article>
-    </li>
-  `).join('');
+        <p class="text-xs leading-relaxed mb-3" style="color:${isUnlocked?'var(--text2)':'var(--text3)'};font-size:.73rem">${b.req}</p>
 
-  // Attach change listeners
-  dom.tipsList.querySelectorAll('.tip-checkbox').forEach(cb => {
-    cb.addEventListener('change', _handleTipToggle);
-  });
+        <!-- Bottom progress line -->
+        <div class="prog-track" style="height:2px;margin-bottom:8px">
+          <div class="prog-fill" style="height:2px;width:${isUnlocked?100:0}%;background:${b.color}"></div>
+        </div>
 
-  _updateTipsProgress();
+        <div class="sec-title" style="font-size:.58rem;color:${isUnlocked?b.color:'var(--text3)'}">
+          ${isUnlocked ? 'UNLOCKED BADGE ✓' : 'LOCKED BADGE 🔒'}
+        </div>
+      </div>`;
+  }).join('');
 }
 
-/**
- * Handle a tip checkbox toggle.
- *
- * @param {Event} e
- */
-function _handleTipToggle(e) {
-  const cb    = /** @type {HTMLInputElement} */ (e.target);
-  const tipId = cb.dataset.tipId;
-  const card  = document.getElementById(`tip-card-${tipId}`);
+// ═══════════════════════════════════════════════════════════════
+// 11. WEEKLY TREND CHART
+// ═══════════════════════════════════════════════════════════════
 
-  if (cb.checked) {
-    state.completedTips.add(tipId);
-    card?.classList.add('completed');
-    showToast('✅ Action completed! Great work!', 'success', 2400);
-  } else {
-    state.completedTips.delete(tipId);
-    card?.classList.remove('completed');
-  }
+let chartType = 'area'; // 'area' | 'line'
 
-  _updateTipsProgress();
+function setChartType(type) {
+  chartType = type;
+  $id('btn-area').classList.toggle('active', type==='area');
+  $id('btn-line').classList.toggle('active', type==='line');
+  $id('btn-area').setAttribute('aria-pressed', type==='area');
+  $id('btn-line').setAttribute('aria-pressed', type==='line');
+  renderTrendChart();
 }
+window.setChartType = setChartType;
 
-/**
- * Update the tips progress bar / text; trigger celebration when all done.
- */
-function _updateTipsProgress() {
-  const total  = state.currentTips.length;
-  const done   = state.completedTips.size;
-  const pct    = total > 0 ? Math.round((done / total) * 100) : 0;
-  const allDone = done === total && total > 0;
+function renderTrendChart() {
+  const data   = state.weeklyData;
+  const labels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
-  dom.tipsProgressText.textContent = `${done} / ${total} done`;
-  dom.tipsProgressBar.style.width  = `${pct}%`;
-  dom.allDoneBanner.classList.toggle('hidden', !allDone);
+  // Calculate baseline as average of non-zero or global avg kg/day (11kg)
+  const baselineKg = 11; // global daily avg in kg
+  const baseline   = Array(7).fill(baselineKg);
 
-  if (allDone) {
-    setTimeout(() => {
-      dom.allDoneBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      showToast('🌍 All actions done — you\'re an eco-hero!', 'success', 5000);
-    }, 200);
-  }
-}
+  // Compute weekly mini stats
+  const actualNonZero = data.filter(v=>v>0);
+  const wkActual   = actualNonZero.reduce((a,b)=>a+b,0);
+  const wkBaseline = baselineKg * (actualNonZero.length || 7);
+  const wkDeficit  = wkActual - wkBaseline;
+  const wkRate     = wkBaseline > 0 ? Math.round(((wkBaseline-wkActual)/wkBaseline)*100) : 0;
 
-// ============================================================================
-// WEEKLY TREND CHART
-// ============================================================================
+  $id('wk-baseline').textContent = `${fmt(wkBaseline,1)} Kg CO₂e`;
+  $id('wk-actual').textContent   = `${fmt(wkActual,1)} Kg CO₂e`;
+  $id('wk-deficit').textContent  = wkDeficit < 0 ? `${fmt(Math.abs(wkDeficit),1)} Kg Saved` : `+${fmt(wkDeficit,1)} Kg Over`;
+  $id('wk-deficit').style.color  = wkDeficit < 0 ? '#00e676' : '#ef5350';
+  $id('wk-rate').textContent     = wkRate >= 0 ? `${wkRate}% Off` : `+${Math.abs(wkRate)}% Over`;
+  $id('wk-rate').style.color     = wkRate >= 0 ? '#ffab40' : '#ef5350';
 
-/**
- * Initialise or update the Chart.js weekly trend bar chart.
- * Uses Chart.js's in-place update to avoid destroying and re-creating the instance.
- *
- * @param {number[]} data - 7-element array of daily CO₂ values.
- */
-function renderWeeklyChart(data) {
-  const labels   = ['6d ago', '5d ago', '4d ago', '3d ago', '2d ago', 'Yesterday', 'Today'];
-  const ctx      = dom.weeklyChart.getContext('2d');
+  const ctx = $id('trend-chart').getContext('2d');
 
-  const gradient = ctx.createLinearGradient(0, 0, 0, 200);
-  gradient.addColorStop(0,   'rgba(34,197,94,0.85)');
-  gradient.addColorStop(0.7, 'rgba(34,197,94,0.3)');
-  gradient.addColorStop(1,   'rgba(34,197,94,0.05)');
+  // Gradients
+  const gradGreen = ctx.createLinearGradient(0, 0, 0, 220);
+  gradGreen.addColorStop(0,   'rgba(0,230,118,.35)');
+  gradGreen.addColorStop(0.6, 'rgba(0,230,118,.08)');
+  gradGreen.addColorStop(1,   'rgba(0,230,118,0)');
 
-  if (state.barChart) {
-    state.barChart.data.datasets[0].data = [...data];
-    state.barChart.data.datasets[0].backgroundColor = gradient;
-    state.barChart.update('active');
-    return;
-  }
+  const gradRed = ctx.createLinearGradient(0, 0, 0, 220);
+  gradRed.addColorStop(0,   'rgba(239,83,80,.3)');
+  gradRed.addColorStop(0.6, 'rgba(239,83,80,.06)');
+  gradRed.addColorStop(1,   'rgba(239,83,80,0)');
 
-  state.barChart = new Chart(dom.weeklyChart, {
-    type: 'bar',
+  if (state.barChart) { state.barChart.destroy(); state.barChart = null; }
+
+  state.barChart = new Chart(ctx, {
+    type: 'line',
     data: {
       labels,
-      datasets: [{
-        label:           'kg CO₂e',
-        data:            [...data],
-        backgroundColor: gradient,
-        borderColor:     'rgba(34,197,94,0.8)',
-        borderWidth:     1.5,
-        borderRadius:    10,
-        borderSkipped:   false,
-      }],
+      datasets: [
+        {
+          label:           'Actual (Kg CO₂e)',
+          data:            [...data],
+          borderColor:     '#00e676',
+          backgroundColor: chartType === 'area' ? gradGreen : 'transparent',
+          fill:            chartType === 'area',
+          tension:         0.45,
+          borderWidth:     2,
+          pointRadius:     4,
+          pointBackgroundColor: '#00e676',
+          pointBorderColor: '#080d09',
+          pointBorderWidth: 2,
+        },
+        {
+          label:           'Baseline (Kg CO₂e)',
+          data:            baseline,
+          borderColor:     '#ef5350',
+          backgroundColor: chartType === 'area' ? gradRed : 'transparent',
+          fill:            chartType === 'area',
+          tension:         0.45,
+          borderWidth:     1.5,
+          borderDash:      [5,5],
+          pointRadius:     0,
+        },
+      ],
     },
     options: {
-      responsive:          true,
-      maintainAspectRatio: true,
+      responsive: true, maintainAspectRatio: true,
+      interaction: { mode:'index', intersect:false },
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: true, position:'bottom',
+          labels: { color:'#5a7a5e', font:{ family:'JetBrains Mono', size:10 }, padding:16, boxWidth:12 },
+        },
         tooltip: {
-          backgroundColor: '#0d1a2e',
-          borderColor:     'rgba(255,255,255,0.1)',
+          backgroundColor: '#0d1710',
+          borderColor:     '#1e2e20',
           borderWidth:     1,
-          titleColor:      '#e8f0fe',
-          bodyColor:       '#7a8fa8',
+          titleColor:      '#d4ebd6',
+          bodyColor:       '#5a7a5e',
           padding:         10,
           callbacks: {
-            title: (items) => items[0].label,
-            label: (ctx)  => ` ${ctx.parsed.y.toFixed(2)} kg CO₂e`,
+            label: c => ` ${c.dataset.label}: ${c.parsed.y.toFixed(1)}`,
           },
         },
       },
       scales: {
         x: {
-          grid:  { color: 'rgba(255,255,255,0.04)', drawBorder: false },
-          ticks: { color: '#4a5e74', font: { family: 'Inter', size: 11 } },
-          border: { display: false },
+          grid:   { color:'rgba(30,46,32,.5)', drawBorder:false },
+          ticks:  { color:'#3a5040', font:{ family:'JetBrains Mono', size:10 } },
+          border: { display:false },
         },
         y: {
-          grid:      { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+          grid:        { color:'rgba(30,46,32,.5)', drawBorder:false },
           beginAtZero: true,
-          border:    { display: false },
-          ticks: {
-            color:    '#4a5e74',
-            font:     { family: 'Inter', size: 11 },
-            callback: v => `${v} kg`,
-            maxTicksLimit: 6,
-          },
+          border:      { display:false },
+          ticks:       { color:'#3a5040', font:{ family:'JetBrains Mono', size:10 }, callback: v=>`${v}k` },
         },
       },
-      animation: { duration: 800, easing: 'easeOutQuart' },
+      animation: { duration:700, easing:'easeOutQuart' },
     },
   });
 }
 
-// ============================================================================
-// DASHBOARD ORCHESTRATION
-// ============================================================================
+// ═══════════════════════════════════════════════════════════════
+// 12. SEMI-CIRCLE ANNUAL FOOTPRINT CHART
+// ═══════════════════════════════════════════════════════════════
 
-/**
- * Render all dashboard components from a single API response object.
- * Uses targeted DOM updates — no full page reload.
- *
- * @param {{
- *   estimated_co2: number,
- *   categories: {food:number, transport:number, energy:number, other:number},
- *   habit_analysis: string,
- *   actionable_tips: Tip[]
- * }} data - Validated API response.
- */
-function renderDashboard(data) {
-  // 1. Show dashboard
-  dom.dashboard.classList.remove('hidden');
-  dom.dashboard.removeAttribute('aria-hidden');
+function renderFootprintChart(cats, totalKg) {
+  const totalT = (totalKg * 365) / 1000; // annual tons estimate
+  const entries = Object.entries(cats).filter(([,v])=>v>0).map(([k,v])=>({
+    label: CAT_CLR[k]?.label || k,
+    color: CAT_CLR[k]?.color || '#64748b',
+    tons:  (v * 365) / 1000,
+    pct:   Math.round(v/totalKg*100),
+  }));
 
-  // 2. Shift weekly rolling window and append today's value
-  state.weeklyData = [...state.weeklyData.slice(1), data.estimated_co2];
-  _saveWeeklyData();
+  if (state.footChart) { state.footChart.destroy(); state.footChart = null; }
 
-  // 3. Render all components
-  renderScoreRing(data.estimated_co2);
-  renderCategoryBars(data.categories, data.estimated_co2);
-  renderDonutChart(data.categories);
-  renderHabitAnalysis(data.habit_analysis);
-  renderTips(data.actionable_tips);
-  renderMiniStats(state.weeklyData, data.actionable_tips);
-  renderWeeklyChart(state.weeklyData);
+  const ctx = $id('footprint-chart').getContext('2d');
 
-  // 4. Update streak
-  _updateStreak();
-
-  // 5. Smooth scroll to dashboard
-  setTimeout(() => {
-    dom.dashboard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 100);
-}
-
-// ============================================================================
-// API CALL
-// ============================================================================
-
-/**
- * Submit an activity log to the FastAPI backend and render the full dashboard.
- *
- * @param {string} activityText - User's validated activity description.
- * @returns {Promise<void>}
- */
-async function submitActivity(activityText) {
-  setLoadingState(true);
-  setInputError('');
-
-  try {
-    const response = await fetch(`${API_BASE}/api/logs/analyse`, {
-      method:  'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept':       'application/json',
+  state.footChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: entries.map(e=>e.label),
+      datasets: [{
+        data:             entries.map(e=>e.tons),
+        backgroundColor:  entries.map(e=>e.color),
+        hoverOffset:      8,
+        borderColor:      '#0e1811',
+        borderWidth:      3,
+      }],
+    },
+    options: {
+      responsive: false, cutout:'65%',
+      rotation: -90, circumference: 180,
+      plugins: {
+        legend:  { display:false },
+        tooltip: {
+          backgroundColor:'#0d1710', borderColor:'#1e2e20', borderWidth:1,
+          titleColor:'#d4ebd6', bodyColor:'#5a7a5e', padding:8,
+          callbacks: { label: c => ` ${c.label}: ${c.parsed.toFixed(2)} Tons/Yr` },
+        },
       },
-      body: JSON.stringify({ activity_text: activityText }),
-    });
-
-    if (!response.ok) {
-      let detail = `Server error (${response.status}).`;
-      try {
-        const err = await response.json();
-        detail = err.detail || detail;
-      } catch (_) { /* ignore json parse errors on error body */ }
-      throw new Error(detail);
-    }
-
-    const data = await response.json();
-    renderDashboard(data);
-    showToast('✨ Analysis complete! Check your dashboard.', 'success');
-
-  } catch (err) {
-    console.error('[Footprint] API error:', err);
-    const msg = err.message?.includes('Failed to fetch')
-      ? '⚠️ Cannot reach the backend. Is the FastAPI server running on port 8000?'
-      : `❌ ${err.message || 'An unexpected error occurred.'}`;
-    showToast(msg, 'error', 6000);
-    setInputError(err.message || 'An unexpected error occurred.');
-  } finally {
-    setLoadingState(false);
-  }
-}
-
-// ============================================================================
-// EVENT HANDLERS
-// ============================================================================
-
-/**
- * Handle form submission — client-side validation then API call.
- *
- * @param {SubmitEvent} e
- */
-function handleFormSubmit(e) {
-  e.preventDefault();
-  if (state.isLoading) return;
-
-  const text = dom.textarea.value.trim();
-
-  if (!text || text.length < 5) {
-    setInputError('Please describe at least one activity (minimum 5 characters).');
-    dom.textarea.focus();
-    return;
-  }
-  if (text.length > 500) {
-    setInputError('Activity description must be 500 characters or fewer.');
-    dom.textarea.focus();
-    return;
-  }
-
-  setInputError('');
-  submitActivity(text);
-}
-
-/**
- * Update the character counter as the user types.
- */
-function handleTextareaInput() {
-  const len = dom.textarea.value.length;
-  dom.charCounter.textContent = `${len} / 500`;
-  dom.charCounter.style.color = len > 450 ? '#f97316' : '';
-  if (len >= 5) setInputError('');
-}
-
-/**
- * Populate the textarea with an example activity when a chip is clicked.
- *
- * @param {MouseEvent} e
- */
-function handleChipClick(e) {
-  const btn  = /** @type {HTMLButtonElement} */ (e.currentTarget);
-  const key  = btn.dataset.example;
-  const text = EXAMPLES[key];
-  if (!text) return;
-
-  dom.textarea.value = text;
-  handleTextareaInput();
-  dom.textarea.focus();
-  dom.textarea.setSelectionRange(text.length, text.length);
-}
-
-// ============================================================================
-// INITIALISATION
-// ============================================================================
-
-/**
- * Bootstrap the application: wire all event listeners and pre-render
- * any persisted historical data from localStorage.
- */
-function init() {
-  // Form submission
-  dom.form.addEventListener('submit', handleFormSubmit);
-
-  // Character counter
-  dom.textarea.addEventListener('input', handleTextareaInput);
-
-  // Example chips
-  dom.chips.forEach(chip => chip.addEventListener('click', handleChipClick));
-
-  // Keyboard: Space/Enter on submit button (redundant but explicit for a11y)
-  dom.submitBtn.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      dom.form.requestSubmit();
-    }
+      animation: { duration:800, easing:'easeOutQuart' },
+    },
   });
 
-  // Pre-render historical weekly chart if data exists
-  renderWeeklyChart(state.weeklyData);
-  if (state.weeklyData.some(v => v > 0)) {
-    dom.dashboard.classList.remove('hidden');
-    renderMiniStats(state.weeklyData, []);
-  }
-
-  // Restore streak badge on load
-  const savedStreak = parseInt(localStorage.getItem(LS_STREAK) || '0', 10);
-  if (savedStreak >= 2) {
-    dom.streakCount.textContent = savedStreak;
-    dom.streakBadge.classList.remove('hidden');
-    dom.streakBadge.classList.add('flex');
-  }
-
-  console.info('[Footprint] 🌱 App initialised. Backend target:', API_BASE);
+  // Legend
+  $id('footprint-legend').innerHTML = entries.map(e => `
+    <div class="flex items-center justify-between py-1">
+      <div class="flex items-center gap-2">
+        <span style="width:10px;height:10px;border-radius:2px;background:${e.color};display:inline-block;flex-shrink:0"></span>
+        <span class="text-xs" style="color:var(--text2)">${e.label}</span>
+      </div>
+      <div class="text-right">
+        <span class="text-xs font-bold tabular-nums" style="color:var(--text);font-family:'JetBrains Mono',monospace">${fmt(e.tons,2)} Tons</span>
+        <span class="text-xs ml-2" style="color:var(--muted)">(${e.pct}%)</span>
+      </div>
+    </div>
+  `).join('') + `
+    <div class="flex items-center justify-between pt-2 mt-1" style="border-top:1px solid var(--border)">
+      <span class="sec-label">ESTIMATED ANNUAL TOTAL</span>
+      <span class="text-sm font-bold" style="color:var(--green);font-family:'JetBrains Mono',monospace">${fmt(totalT,2)} Tons</span>
+    </div>`;
 }
 
-// ============================================================================
-// BOOT
-// ============================================================================
+// ═══════════════════════════════════════════════════════════════
+// 13. INTERACTIVE ASSESSMENT SLIDERS
+// ═══════════════════════════════════════════════════════════════
+
+function buildSliders() {
+  const container = $id('assessment-sliders');
+  ASSESS_DEFAULT.forEach((a, i) => {
+    const val = state.assessVals[i] ?? a.val;
+    container.innerHTML += `
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <div>
+            <span class="text-sm font-semibold text-white">${a.label}</span>
+            <span class="sec-label ml-2" style="font-size:.6rem">${a.sub}</span>
+          </div>
+          <div class="text-sm font-bold tabular-nums" style="color:${a.color};font-family:'JetBrains Mono',monospace">
+            <span id="sv-${a.id}">${fmt(val,1)}</span> <span style="color:var(--muted);font-size:.7rem">${a.unit}</span>
+          </div>
+        </div>
+        <div class="relative">
+          <input type="range" id="${a.id}" class="w-full" min="${a.min}" max="${a.max}" step="${a.step}" value="${val}"
+                 style="accent-color:${a.color};height:6px;cursor:pointer"
+                 oninput="onSlider('${a.id}',${i},this.value,'${a.color}')"
+                 aria-label="${a.label} slider" aria-valuenow="${val}" aria-valuemin="${a.min}" aria-valuemax="${a.max}"/>
+        </div>
+      </div>`;
+  });
+  updateAssessTotal();
+}
+
+function onSlider(id, i, val, color) {
+  $id(`sv-${id}`).textContent = fmt(val, 1);
+  state.assessVals[i] = parseFloat(val);
+  saveLS(LS_ASSESS, state.assessVals);
+  updateAssessTotal();
+}
+window.onSlider = onSlider;
+
+function updateAssessTotal() {
+  const total = state.assessVals.reduce((a,b)=>a+b,0);
+  // Update reduction score if no live data
+  if (!state.lastAnalysis) {
+    $id('reduction-score').textContent = fmt(total,1)+'T';
+    const pctOfUs = Math.min(total/US_AVG*100,100);
+    $id('reduction-marker').style.left = `${pctOfUs}%`;
+  }
+}
+
+function resetAssessment() {
+  ASSESS_DEFAULT.forEach((a,i) => {
+    const el = $id(a.id);
+    if (el) { el.value = a.val; $id(`sv-${a.id}`).textContent = fmt(a.val,1); }
+    state.assessVals[i] = a.val;
+  });
+  saveLS(LS_ASSESS, state.assessVals);
+  updateAssessTotal();
+  toast('Settings reset to defaults.', 'info');
+}
+window.resetAssessment = resetAssessment;
+
+// ═══════════════════════════════════════════════════════════════
+// 14. VOICE ASSISTANT (Web Speech API)
+// ═══════════════════════════════════════════════════════════════
+
+const synth = window.speechSynthesis;
+
+function toggleVoice() {
+  state.speechActive = !state.speechActive;
+  const btn = $id('mic-btn');
+  btn.classList.toggle('active', state.speechActive);
+  btn.setAttribute('aria-pressed', state.speechActive);
+  if (state.speechActive) {
+    $id('voice-status').textContent = 'Listening for your command…';
+    voiceRead('intro');
+  } else {
+    synth?.cancel();
+    $id('voice-status').textContent = 'Ready for your command…';
+  }
+}
+window.toggleVoice = toggleVoice;
+
+function voiceRead(type) {
+  const co2   = state.lastAnalysis?.estimated_co2 ?? null;
+  const saved = fmt(getDailyKg(), 1);
+  const texts = {
+    intro:   `Hello! I am Carbon Trace Assistant. You can ask me to read your scores, suggest saving tips, or provide AI insights.`,
+    score:   co2 ? `Your today's carbon score is ${fmt(co2,1)} kilograms of CO₂ equivalent. Your daily savings from committed actions is ${saved} kilograms.`
+                 : `No score recorded yet. Please log your activities first.`,
+    tip:     state.currentTips[0]
+               ? `Here is a tip: ${state.currentTips[0].title}. ${state.currentTips[0].description}`
+               : `No tips available yet. Log an activity to get personalised eco-actions.`,
+    insight: state.lastAnalysis?.habit_analysis
+               ? state.lastAnalysis.habit_analysis
+               : `No insights available yet. Analyse your activities with Gemini AI first.`,
+  };
+  const text = texts[type] || texts.intro;
+  $id('voice-text').textContent = `"${text}"`;
+  $id('voice-status').textContent = 'Speaking…';
+
+  if (synth) {
+    synth.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.rate = 0.92; utt.pitch = 1; utt.volume = 0.95;
+    utt.onend = () => { $id('voice-status').textContent = 'Done. Ready for next command…'; };
+    synth.speak(utt);
+  }
+}
+window.voiceRead = voiceRead;
+
+// ═══════════════════════════════════════════════════════════════
+// 15. GEMINI AI ADVISOR
+// ═══════════════════════════════════════════════════════════════
+
+function renderInsightsReady(habitText) {
+  $id('insights-box').innerHTML = `
+    <p class="text-xs leading-relaxed" style="color:var(--text2)">${habitText}</p>`;
+}
+
+async function getInsights() {
+  if (state.lastAnalysis) {
+    renderInsightsReady(state.lastAnalysis.habit_analysis);
+    toast('✨ AI insights loaded from last analysis.', 'info', 2000);
+    return;
+  }
+  $id('insights-label').textContent = '⏳ LOADING…';
+  const text = $id('log-input').value.trim();
+  if (!text) {
+    $id('insights-box').innerHTML = `<p class="text-xs" style="color:var(--red)">Please log an activity first to get AI insights.</p>`;
+    $id('insights-label').textContent = '🔄 GET INSIGHTS';
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/logs/analyse`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ activity_text: text }),
+    });
+    if (!res.ok) throw new Error('Backend error');
+    const data = await res.json();
+    state.lastAnalysis = data;
+    renderInsightsReady(data.habit_analysis);
+    toast('✨ Gemini AI insights generated!', 'success');
+  } catch(_) {
+    $id('insights-box').innerHTML = `<p class="text-xs" style="color:var(--red)">Could not fetch insights. Is the backend running?</p>`;
+  } finally {
+    $id('insights-label').textContent = '🔄 GET INSIGHTS';
+  }
+}
+window.getInsights = getInsights;
+
+// ═══════════════════════════════════════════════════════════════
+// 16. EXAMPLE CHIPS
+// ═══════════════════════════════════════════════════════════════
+
+function initChips() {
+  $$('[data-ex]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const txt = EXAMPLES[btn.dataset.ex];
+      if (!txt) return;
+      $id('log-input').value = txt;
+      $id('log-chars').textContent = `${txt.length}/500`;
+      $id('log-input').focus();
+    });
+  });
+  $id('log-input').addEventListener('input', () => {
+    $id('log-chars').textContent = `${$id('log-input').value.length}/500`;
+    if ($id('log-input').value.length >= 5) setErr('');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 17. RESTORE SAVED ACTIONS (on load)
+// ═══════════════════════════════════════════════════════════════
+
+function restoreOnLoad() {
+  // If user has previous streak
+  if (state.streak >= 2) {
+    $id('streak-badge').classList.remove('hidden');
+    $id('streak-badge').style.display = 'inline-flex';
+    $id('streak-val').textContent = state.streak;
+    $id('stat-streak').textContent = state.streak;
+    $id('stat-streak-sub').textContent = `${state.streak} active habits`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 18. INIT
+// ═══════════════════════════════════════════════════════════════
+
+function init() {
+  $id('log-form').addEventListener('submit', handleSubmit);
+  initChips();
+  buildSliders();
+  restoreOnLoad();
+  renderBadges();
+  renderTrendChart();
+  renderTrackers();
+  renderTopStats();
+
+  // Pre-render weekly chart if data exists
+  if (state.weeklyData.some(v=>v>0)) {
+    renderTrendChart();
+  }
+
+  console.info('[Footprint] 🌱 EcoTrack UI loaded. Backend:', API_BASE);
+}
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);

@@ -119,18 +119,15 @@ class AIService:
     def __init__(self) -> None:
         """
         Initialize the AI service, loading the API key from the environment.
-
-        Raises:
-            EnvironmentError: If ``GEMINI_API_KEY`` is not set in the environment.
+        If missing, it operates in mock mode for testing.
         """
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise EnvironmentError(
-                "GEMINI_API_KEY environment variable is not set. "
-                "Please copy .env.example to .env and add your Gemini API key."
-            )
-        self._client = genai.Client(api_key=api_key)
-        logger.info("AIService initialised with model: %s", self.MODEL_ID)
+        self.api_key = os.getenv("GEMINI_API_KEY")
+        if self.api_key:
+            self._client = genai.Client(api_key=self.api_key)
+            logger.info("AIService initialised with model: %s", self.MODEL_ID)
+        else:
+            self._client = None
+            logger.warning("GEMINI_API_KEY missing. AIService will run in MOCK mode.")
 
     async def analyse_activity(self, activity_text: str) -> ActivityLogResponse:
         """
@@ -150,6 +147,42 @@ class AIService:
             ValueError:   If the model returns unparseable or structurally invalid JSON.
             RuntimeError: On any unexpected Gemini API error (network, quota, etc.).
         """
+        if not self._client:
+            # MOCK MODE
+            import asyncio
+            await asyncio.sleep(1.5)  # simulate latency
+            mock_data = {
+                "estimated_co2": 12.4,
+                "categories": {
+                    "food": 3.2,
+                    "transport": 4.5,
+                    "energy": 3.0,
+                    "other": 1.7
+                },
+                "habit_analysis": "You have a balanced footprint today, but your transport emissions are the highest due to your petrol commute. Shifting to active or public transport could significantly lower your impact.",
+                "actionable_tips": [
+                    {
+                        "id": "tip_1",
+                        "title": "Use Public Transit",
+                        "description": "Swapping your petrol commute for public transport saves approximately 2.1 kg CO2e.",
+                        "co2_saving": 2.1
+                    },
+                    {
+                        "id": "tip_2",
+                        "title": "Plant-Based Lunch",
+                        "description": "Choosing a vegan meal instead of beef can save 1.5 kg CO2e per meal.",
+                        "co2_saving": 1.5
+                    },
+                    {
+                        "id": "tip_3",
+                        "title": "Reduce Screen Time",
+                        "description": "Cutting 1 hour of streaming saves roughly 0.1 kg CO2e in energy.",
+                        "co2_saving": 0.1
+                    }
+                ]
+            }
+            return _build_response(mock_data, activity_text)
+
         prompt = (
             f"User Input: {activity_text}\n\n"
             "Please analyse these activities and respond with the JSON object "
