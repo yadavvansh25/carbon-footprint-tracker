@@ -13,9 +13,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 
   <style>
-    /* ═══════════════════════════════════════════════════════════════
-        DESIGN SYSTEM
-    ═══════════════════════════════════════════════════════════════ */
     :root {
       --bg:           #080d09;
       --bg2:          #0c1410;
@@ -54,739 +51,134 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ═══ SCROLLBAR ═══ */
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: var(--bg2); }
     ::-webkit-scrollbar-thumb { background: var(--muted2); border-radius: 99px; }
 
-    /* ═══ CARD BASE ═══ */
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-    }
-    .card-dark {
-      background: #0a1209;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-    }
-
-    /* ═══ SECTION LABEL ═══ */
-    .sec-label {
-      font-family: var(--font-mono);
-      font-size: .65rem;
-      font-weight: 600;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: var(--text2);
-    }
-    .sec-title {
-      font-family: var(--font-mono);
-      font-size: .7rem;
-      font-weight: 700;
-      letter-spacing: .15em;
-      text-transform: uppercase;
-    }
-
-    /* ═══ GREEN PILL ═══ */
-    .pill-green {
-      display: inline-flex; align-items: center; gap: 5px;
-      background: var(--green-dim);
-      border: 1px solid rgba(0,230,118,.25);
-      color: var(--green);
-      border-radius: 99px;
-      font-family: var(--font-mono);
-      font-size: .68rem; font-weight: 700;
-      letter-spacing: .08em; padding: 4px 12px;
-    }
-
-    /* ═══ PROGRESS BARS ═══ */
-    .prog-track {
-      background: #162018; border-radius: 99px; overflow: hidden;
-    }
-    .prog-fill {
-      border-radius: 99px; height: 100%;
-      transition: width 1.1s cubic-bezier(0.16,1,0.3,1);
-    }
-
-    /* ═══ BADGE CARDS ═══ */
-    .badge-card {
-      background: #0e1811;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 18px 18px 14px;
-      transition: border-color .22s, box-shadow .22s;
-      position: relative;
-    }
-    .badge-card:hover {
-      border-color: rgba(0,230,118,.22);
-      box-shadow: 0 4px 28px rgba(0,0,0,.5);
-    }
-    .badge-card.locked { opacity: .55; }
-
-    .badge-icon {
-      width: 44px; height: 44px; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.3rem; flex-shrink: 0;
-    }
-
-    .badge-check {
-      width: 22px; height: 22px; border-radius: 50%;
-      background: rgba(0,230,118,.15);
-      border: 1.5px solid rgba(0,230,118,.4);
-      display: flex; align-items: center; justify-content: center;
-      color: var(--green); font-size: .7rem;
-    }
-
-    /* ═══ STAT TOP CARDS ═══ */
-    .stat-card {
-      background: #0d1710;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px 18px;
-      display: flex; gap: 14px; align-items: flex-start;
-    }
-    .stat-icon {
-      width: 40px; height: 40px; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem; flex-shrink: 0;
-    }
-
-    /* ═══ ACTION ROWS ═══ */
-    .action-row {
-      display: flex; align-items: flex-start; gap: 12px;
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-      transition: background .18s;
-      cursor: pointer;
-    }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+    .card-dark { background: #0a1209; border: 1px solid var(--border); border-radius: 12px; }
+    .sec-label { font-family: var(--font-mono); font-size: .65rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--text2); }
+    .sec-title { font-family: var(--font-mono); font-size: .7rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; }
+    .pill-green { display: inline-flex; align-items: center; gap: 5px; background: var(--green-dim); border: 1px solid rgba(0,230,118,.25); color: var(--green); border-radius: 99px; font-family: var(--font-mono); font-size: .68rem; font-weight: 700; letter-spacing: .08em; padding: 4px 12px; }
+    .prog-track { background: #162018; border-radius: 99px; overflow: hidden; }
+    .prog-fill { border-radius: 99px; height: 100%; transition: width 1.1s cubic-bezier(0.16,1,0.3,1); }
+    .stat-card { background: #0d1710; border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; display: flex; gap: 14px; align-items: flex-start; }
+    .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+    .action-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); transition: background .18s; cursor: pointer; }
     .action-row:hover { background: rgba(0,230,118,.03); }
-    .action-row.checked { background: rgba(0,230,118,.05); }
-    .action-row:last-child { border-bottom: none; }
-
-    .action-check {
-      appearance: none; -webkit-appearance: none;
-      width: 18px; height: 18px; border-radius: 3px; flex-shrink: 0;
-      border: 1.5px solid #3a5040; cursor: pointer; margin-top: 1px;
-      background: #0c1510;
-      transition: all .18s; position: relative;
-    }
-    .action-check:checked {
-      background: var(--green2);
-      border-color: var(--green2);
-    }
-    .action-check:checked::after {
-      content: '';
-      position: absolute; inset: 0;
-      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23080d09'%3E%3Cpath d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z'/%3E%3C/svg%3E") center/11px no-repeat;
-    }
-
-    /* ═══ VOICE ASSISTANT ═══ */
-    .voice-btn {
-      width: 32px; height: 32px; border-radius: 50%;
-      background: var(--red);
-      border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: opacity .2s, box-shadow .2s;
-    }
+    .action-check { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; border-radius: 3px; flex-shrink: 0; border: 1.5px solid #3a5040; cursor: pointer; margin-top: 1px; background: #0c1510; transition: all .18s; position: relative; }
+    .action-check:checked { background: var(--green2); border-color: var(--green2); }
+    .action-check:checked::after { content: ''; position: absolute; inset: 0; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23080d09'%3E%3Cpath d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z'/%3E%3C/svg%3E") center/11px no-repeat; }
+    .voice-btn { width: 32px; height: 32px; border-radius: 50%; background: var(--red); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity .2s, box-shadow .2s; }
     .voice-btn:hover { opacity: .85; box-shadow: 0 0 14px rgba(239,83,80,.4); }
-    .voice-btn.active { animation: pulse-red 1.5s ease-in-out infinite; }
-    @keyframes pulse-red {
-      0%,100% { box-shadow: 0 0 0 0 rgba(239,83,80,.4); }
-      50%      { box-shadow: 0 0 0 8px rgba(239,83,80,0); }
-    }
-
-    .quick-trigger {
-      display: flex; align-items: center; gap: 6px;
-      background: #0a1209;
-      border: 1px solid var(--border2); border-radius: 99px;
-      padding: 5px 12px; font-size: .72rem; font-family: var(--font-mono);
-      color: var(--text2); cursor: pointer; transition: all .18s; flex: 1;
-    }
+    .quick-trigger { display: flex; align-items: center; gap: 6px; background: #0a1209; border: 1px solid var(--border2); border-radius: 99px; padding: 5px 12px; font-size: .72rem; font-family: var(--font-mono); color: var(--text2); cursor: pointer; transition: all .18s; flex: 1; }
     .quick-trigger:hover { border-color: var(--green); color: var(--green); }
-
-    /* ═══ CHART TOGGLE ═══ */
-    .chart-toggle {
-      display: flex; border: 1px solid var(--border2); border-radius: 6px; overflow: hidden;
-    }
-    .chart-toggle button {
-      padding: 5px 12px; font-family: var(--font-mono); font-size: .65rem; font-weight: 600;
-      letter-spacing: .08em; text-transform: uppercase; border: none; cursor: pointer;
-      transition: all .18s; background: transparent; color: var(--text2);
-    }
-    .chart-toggle button.active {
-      background: var(--green2); color: #080d09;
-    }
-
-    /* ═══ COMMITMENT INPUT ═══ */
-    .commit-input {
-      background: #0a1209; border: 1px solid var(--border2);
-      border-radius: 8px; color: var(--text); font-family: 'Inter', sans-serif;
-      font-size: .83rem; padding: 10px 14px; flex: 1; min-width: 0;
-      transition: border-color .2s;
-    }
-    .commit-input:focus { outline: none; border-color: var(--green); }
-    .commit-input::placeholder { color: var(--text3); }
-
-    select.commit-input { cursor: pointer; }
-
-    .btn-create {
-      background: var(--green2); color: #080d09;
-      border: none; border-radius: 8px; cursor: pointer;
-      font-family: var(--font-mono); font-size: .68rem; font-weight: 700;
-      letter-spacing: .1em; text-transform: uppercase;
-      padding: 10px 16px; white-space: nowrap;
-      transition: opacity .18s, box-shadow .18s;
-    }
-    .btn-create:hover { opacity: .88; box-shadow: 0 4px 16px rgba(0,200,83,.35); }
-
-    /* ═══ GRADIENT PROGRESS (reduction tracker) ═══ */
-    .grad-bar {
-      height: 10px; border-radius: 99px;
-      background: linear-gradient(90deg, var(--red) 0%, var(--amber) 35%, var(--green2) 65%, var(--cyan) 100%);
-      position: relative;
-    }
-    .grad-marker {
-      position: absolute; top: -4px; width: 3px; height: 18px;
-      background: white; border-radius: 99px;
-      box-shadow: 0 0 8px rgba(255,255,255,.6);
-    }
-
-    /* ═══ ACTIVITY LOG PANEL ═══ */
-    #log-panel {
-      transition: max-height .4s cubic-bezier(0.16,1,0.3,1), opacity .3s;
-    }
-
-    /* ═══ ANIMATIONS ═══ */
-    @keyframes fadeUp   { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
-    @keyframes spinAnim { to { transform: rotate(360deg); } }
-    @keyframes glow-pulse {
-      0%,100% { text-shadow: 0 0 8px rgba(0,230,118,.4); }
-      50%     { text-shadow: 0 0 20px rgba(0,230,118,.8); }
-    }
-    @keyframes scanline {
-      0%   { transform: translateY(-100%); opacity: .06; }
-      100% { transform: translateY(100vh); opacity: 0; }
-    }
-
-    .anim-fade-up  { animation: fadeUp .55s cubic-bezier(0.16,1,0.3,1) both; }
-    .anim-fade-in  { animation: fadeIn .4s ease both; }
-    .anim-spin     { animation: spinAnim 1.6s linear infinite; }
-    .glow-pulse    { animation: glow-pulse 2.5s ease-in-out infinite; }
-    .d1 { animation-delay: .06s; }
-    .d2 { animation-delay: .12s; }
-    .d3 { animation-delay: .18s; }
-    .d4 { animation-delay: .24s; }
-    .d5 { animation-delay: .30s; }
-
-    /* ═══ SCANLINE OVERLAY ═══ */
-    .scanline-wrap {
-      position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
-    }
-    .scanline {
-      position: absolute; width: 100%; height: 2px;
-      background: linear-gradient(transparent, rgba(0,230,118,.04), transparent);
-      animation: scanline 10s linear infinite;
-    }
-
-    /* ═══ HEADER ═══ */
-    header {
-      background: rgba(8,13,9,.95);
-      backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--border);
-      position: sticky; top: 0; z-index: 50;
-    }
-
-    /* ═══ GRADIENT NUMBERS ═══ */
-    .grad-num {
-      background: linear-gradient(135deg, var(--green), var(--cyan));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    /* ═══ TOAST ═══ */
-    #toast {
-      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
-      padding: 12px 20px; border-radius: 10px; font-size: .84rem; font-weight: 600;
-      opacity: 0; transform: translateY(10px); max-width: 340px;
-      transition: all .3s cubic-bezier(0.16,1,0.3,1); pointer-events: none;
-    }
-    #toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
-
-    /* ═══ INSIGHT BOX ═══ */
-    .insight-box {
-      background: #0a1209; border: 1px dashed var(--muted2);
-      border-radius: 8px; padding: 16px;
-      font-size: .8rem; line-height: 1.6;
-    }
-
-    /* ═══ SAVINGS DISPLAY ═══ */
-    .savings-display {
-      background: #0d1a10;
-      border: 1px solid rgba(0,230,118,.2);
-      border-radius: 10px;
-      padding: 10px 14px;
-    }
-
-    /* ═══ ACTIVITY LOG TEXTAREA ═══ */
-    .log-area {
-      width: 100%; resize: vertical; min-height: 80px;
-      background: #0a1209; border: 1px solid var(--border2);
-      border-radius: 8px; color: var(--text);
-      font-family: 'Inter', sans-serif; font-size: .83rem; line-height: 1.6;
-      padding: 10px 14px;
-      transition: border-color .2s;
-    }
-    .log-area:focus { outline: none; border-color: var(--green); }
-    .log-area::placeholder { color: var(--text3); }
-
-    /* ═══ FOCUS RING ═══ */
+    .chart-toggle { display: flex; border: 1px solid var(--border2); border-radius: 6px; overflow: hidden; }
+    .chart-toggle button { padding: 5px 12px; font-family: var(--font-mono); font-size: .65rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; border: none; cursor: pointer; transition: all .18s; background: transparent; color: var(--text2); }
+    .chart-toggle button.active { background: var(--green2); color: #080d09; }
+    .commit-input { background: #0a1209; border: 1px solid var(--border2); border-radius: 8px; color: var(--text); font-family: 'Inter', sans-serif; font-size: .83rem; padding: 10px 14px; flex: 1; min-width: 0; transition: border-color .2s; }
+    .btn-create { background: var(--green2); color: #080d09; border: none; border-radius: 8px; cursor: pointer; font-family: var(--font-mono); font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 10px 16px; white-space: nowrap; transition: opacity .18s, box-shadow .18s; }
+    .grad-num { background: linear-gradient(135deg, var(--green), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .log-area { width: 100%; resize: vertical; min-height: 80px; background: #0a1209; border: 1px solid var(--border2); border-radius: 8px; color: var(--text); font-family: 'Inter', sans-serif; font-size: .83rem; line-height: 1.6; padding: 10px 14px; transition: border-color .2s; }
     :focus-visible { outline: 1.5px solid var(--green); outline-offset: 2px; }
-
-    /* scrollable action list */
-    #actions-scroll { max-height: 260px; overflow-y: auto; }
   </style>
 </head>
 
 <body>
+<div class="scanline-wrap" aria-hidden="true"><div class="scanline"></div></div>
 
-<!-- Scanline effect -->
-<div class="scanline-wrap" aria-hidden="true">
-  <div class="scanline"></div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     HEADER
-═══════════════════════════════════════════════════════════════ -->
 <header>
   <div class="max-w-screen-2xl mx-auto px-5 py-3 flex items-center justify-between gap-4">
-    <!-- Brand -->
     <div class="flex items-center gap-3">
       <div style="width:32px;height:32px;background:linear-gradient(135deg,#00e676,#00c853);border-radius:8px;display:flex;align-items:center;justify-content:center">
-        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#080d09" stroke-width="2.4" aria-hidden="true">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364-.707.707M6.343 17.657l-.707.707m12.728 0-.707-.707M6.343 6.343l-.707-.707"/>
-          <circle cx="12" cy="12" r="4"/>
-        </svg>
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#080d09" stroke-width="2.4" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364-.707.707M6.343 17.657l-.707.707m12.728 0-.707-.707M6.343 6.343l-.707-.707"/><circle cx="12" cy="12" r="4"/></svg>
       </div>
       <div>
         <div class="font-mono text-white font-bold text-sm tracking-wider" style="font-family:'Space Grotesk',sans-serif">FOOTPRINT</div>
         <div class="sec-label" style="font-size:.58rem">AI CARBON TRACE SYSTEM</div>
       </div>
     </div>
-
-    <!-- Nav -->
     <nav class="hidden md:flex items-center gap-6" aria-label="Main navigation">
       <a href="#dashboard" class="sec-label hover:text-green-400 transition-colors cursor-pointer" style="color:var(--green)">DASHBOARD</a>
       <a href="#badges" class="sec-label hover:text-green-400 transition-colors cursor-pointer">BADGES</a>
       <a href="#tracker" class="sec-label hover:text-green-400 transition-colors cursor-pointer">TRACKER</a>
       <a href="#trends" class="sec-label hover:text-green-400 transition-colors cursor-pointer">TRENDS</a>
     </nav>
-
-    <!-- Right -->
     <div class="flex items-center gap-3">
-      <div id="streak-badge" class="pill-green hidden">
-        🔥 <span id="streak-val">0</span> DAY STREAK
-      </div>
-      <div class="pill-green" style="cursor:pointer" onclick="document.getElementById('log-panel').scrollIntoView({behavior:'smooth'})">
-        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-        LOG ACTIVITY
-      </div>
+      <button type="button" id="streak-badge" class="pill-green hidden">🔥 <span id="streak-val">0</span> DAY STREAK</button>
+      <button type="button" class="pill-green" onclick="document.getElementById('log-panel').scrollIntoView({behavior:'smooth'})">
+        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg> LOG ACTIVITY
+      </button>
     </div>
   </div>
 </header>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     MAIN CONTENT
-═══════════════════════════════════════════════════════════════ -->
 <main class="max-w-screen-2xl mx-auto px-4 py-5 space-y-5" id="dashboard" role="main" aria-label="Main Dashboard Content">
-
-  <!-- ══ TOP 4 STAT CARDS ══ -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3" aria-label="Key metrics">
-
-    <div class="stat-card anim-fade-up d1">
+    <div class="stat-card">
       <div class="stat-icon" style="background:rgba(0,200,83,.12);border:1px solid rgba(0,200,83,.2)">🌿</div>
-      <div>
-        <div class="sec-label mb-1">Annual Offset Savings</div>
-        <div id="stat-offset" class="grad-num" style="font-family:'Space Grotesk';font-size:1.6rem;font-weight:800;line-height:1">0.000</div>
-        <div class="sec-label mt-1">Tons From checked actions</div>
-      </div>
+      <div><div class="sec-label mb-1">Annual Offset Savings</div><div id="stat-offset" class="grad-num" style="font-family:'Space Grotesk';font-size:1.6rem;font-weight:800;line-height:1">0.000</div><div class="sec-label mt-1">Tons From checked actions</div></div>
     </div>
-
-    <div class="stat-card anim-fade-up d2">
-      <div class="stat-icon" style="background:rgba(255,171,64,.12);border:1px solid rgba(255,171,64,.2)">
-        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ffab40" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-      </div>
-      <div>
-        <div class="sec-label mb-1">Carbon-Savvy Streak</div>
-        <div class="font-bold" style="font-family:'Space Grotesk';font-size:1.4rem;color:#ffab40;line-height:1">
-          <span id="stat-streak">0</span> <span style="font-size:.9rem">Days</span>
-        </div>
-        <div class="sec-label mt-1" id="stat-streak-sub">Start your streak!</div>
-      </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(255,171,64,.12);border:1px solid rgba(255,171,64,.2)"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#ffab40" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div>
+      <div><div class="sec-label mb-1">Carbon-Savvy Streak</div><div class="font-bold" style="font-family:'Space Grotesk';font-size:1.4rem;color:#ffab40;line-height:1"><span id="stat-streak">0</span> <span style="font-size:.9rem">Days</span></div><div class="sec-label mt-1">Start your streak!</div></div>
     </div>
-
-    <div class="stat-card anim-fade-up d3">
-      <div class="stat-icon" style="background:rgba(64,196,255,.12);border:1px solid rgba(64,196,255,.2)">
-        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#40c4ff" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      </div>
-      <div>
-        <div class="sec-label mb-1">Your Climate Standing</div>
-        <div id="stat-standing" class="font-bold" style="font-family:'Space Grotesk';font-size:1rem;color:#40c4ff;line-height:1.3">Getting Started</div>
-        <div class="sec-label mt-1">Updated in real-time</div>
-      </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(64,196,255,.12);border:1px solid rgba(64,196,255,.2)"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="#40c4ff" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+      <div><div class="sec-label mb-1">Your Climate Standing</div><div id="stat-standing" class="font-bold" style="font-family:'Space Grotesk';font-size:1rem;color:#40c4ff;line-height:1.3">Getting Started</div><div class="sec-label mt-1">Updated in real-time</div></div>
     </div>
-
-    <div class="stat-card anim-fade-up d4">
+    <div class="stat-card">
       <div class="stat-icon" style="background:rgba(206,147,216,.12);border:1px solid rgba(206,147,216,.2)">🌱</div>
-      <div>
-        <div class="sec-label mb-1">Absorbing Tree Power</div>
-        <div id="stat-trees" class="font-bold" style="font-family:'Space Grotesk';font-size:1.4rem;color:#ce93d8;line-height:1">0</div>
-        <div class="sec-label mt-1">Saplings/Yr Equivalent absorption</div>
-      </div>
+      <div><div class="sec-label mb-1">Absorbing Tree Power</div><div id="stat-trees" class="font-bold" style="font-family:'Space Grotesk';font-size:1.4rem;color:#ce93d8;line-height:1">0</div><div class="sec-label mt-1">Saplings/Yr Equivalent absorption</div></div>
     </div>
   </div>
 
-  <!-- ══ TRACKERS ROW ══ -->
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 anim-fade-up d2">
-
-    <!-- Carbon Reduction Tracker -->
-    <div class="card p-4">
-      <div class="flex items-center justify-between mb-3">
-        <div class="flex items-center gap-2">
-          <span style="color:var(--orange)">🎯</span>
-          <span class="sec-title" style="color:var(--text)">Carbon Reduction Tracker</span>
-        </div>
-        <span class="sec-label">Goal: 3 Tons/Yr</span>
-      </div>
-
-      <!-- Gradient bar -->
-      <div class="prog-track h-2.5 mb-2 relative" style="background:transparent">
-        <div class="grad-bar mb-0" style="height:10px;border-radius:99px">
-          <!-- US Avg marker -->
-          <div class="grad-marker" style="left:75%" title="US Average: 16.0T"></div>
-          <!-- Target marker -->
-          <div class="grad-marker" style="left:30%;background:var(--cyan)" title="Target: 3.0T"></div>
-          <!-- Your score marker -->
-          <div id="reduction-marker" class="grad-marker" style="left:50%;background:#fff700" title="Your Score"></div>
-        </div>
-      </div>
-      <div class="flex justify-between text-xs mb-3" style="color:var(--text2);font-family:var(--font-mono);font-size:.62rem">
-        <span>US Average: 16.0T</span>
-        <span>Sustainable Target: 3.0T</span>
-        <span>Your total score: <span id="reduction-score" style="color:var(--green)">—</span></span>
-      </div>
-      <p id="reduction-status" class="text-xs" style="color:var(--orange);font-family:var(--font-mono);font-size:.65rem">
-        Status: Log your activities to see your standing.
-      </p>
-    </div>
-
-    <!-- Action Habit Tracker -->
-    <div class="card p-4">
-      <div class="flex items-center justify-between mb-3">
-        <div class="flex items-center gap-2">
-          <span style="color:var(--amber)">⚡</span>
-          <span class="sec-title" style="color:var(--text)">Action Habit Tracker</span>
-        </div>
-        <span class="sec-label"><span id="habits-done">0</span> of <span id="habits-total">0</span> Completed</span>
-      </div>
-      <div class="prog-track h-2 mb-3" style="height:8px">
-        <div id="habit-fill" class="prog-fill" style="width:0%;height:8px;background:linear-gradient(90deg,#22c55e,#00e676)"></div>
-      </div>
-      <div class="flex items-center justify-between mb-2">
-        <p id="habit-label" class="text-xs" style="color:var(--green-text);font-family:var(--font-mono);font-size:.65rem">
-          🌿 Climate Advocate — Actively mitigating carbon.
-        </p>
-        <span id="habit-pct" class="text-xs font-bold" style="color:var(--green);font-family:var(--font-mono)">0%</span>
-      </div>
-      <p id="habit-summary" class="text-xs leading-relaxed" style="color:var(--text2)">
-        Check off eco-actions below to see your real-time CO₂ reductions.
-      </p>
-    </div>
-  </div>
-
-  <!-- ══ MAIN GRID: Left + Right Columns ══ -->
   <div class="grid grid-cols-1 xl:grid-cols-12 gap-3">
-
-    <!-- LEFT COLUMN (col 5) -->
     <div class="xl:col-span-5 space-y-3">
-
-      <!-- Activity Logger (collapsed by default, expands) -->
-      <div class="card anim-fade-up" id="log-panel">
+      <section class="card" id="log-panel" aria-labelledby="log-heading">
         <div class="p-4 border-b" style="border-color:var(--border)">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="sec-title" style="color:var(--green)">📝 LOG DAILY ACTIVITY</div>
-              <div class="sec-label mt-0.5">AI CARBON ANALYSIS CONSOLE</div>
-            </div>
-            <span id="api-status" class="pill-green" style="font-size:.6rem">● AI READY</span>
-          </div>
+            <h2 id="log-heading" class="sec-title" style="color:var(--green)">📝 LOG DAILY ACTIVITY</h2>
         </div>
-        <div class="p-4 space-y-3">
-          <form id="log-form" aria-label="Activity logging form" novalidate>
+        <div class="p-4">
+          <form id="log-form" novalidate>
             <label for="log-input" class="sec-label block mb-2">DESCRIBE TODAY'S ACTIVITIES</label>
-            <textarea
-              id="log-input"
-              class="log-area"
-              rows="3"
-              maxlength="500"
-              aria-required="true"
-              aria-describedby="log-hint log-error"
-              placeholder='e.g. "Drove 15km in petrol car, beef burger for lunch, streamed Netflix 3hrs..."'
-            ></textarea>
-            <div class="flex justify-between items-center mt-1">
-              <p id="log-hint" class="sec-label" style="font-size:.6rem">Tip: mention distances, food, & energy use</p>
-              <span id="log-chars" class="sec-label tabular-nums" aria-live="polite">0/500</span>
-            </div>
-            <p id="log-error" class="text-red-400 text-xs mt-1 hidden" role="alert" aria-live="assertive"></p>
-
-            <!-- Quick chips -->
-            <div class="flex flex-wrap gap-1.5 mt-3" role="group" aria-label="Example activities">
-              <button type="button" class="quick-trigger" data-ex="car-burger" aria-label="Car commute and beef burger">🚗 Car+Burger</button>
-              <button type="button" class="quick-trigger" data-ex="cycle-vegan" aria-label="Cycling and vegan lunch">🚲 Cycle+Vegan</button>
-              <button type="button" class="quick-trigger" data-ex="flight" aria-label="Long-haul flight">✈️ Flight</button>
-              <button type="button" class="quick-trigger" data-ex="wfh-ac" aria-label="Work from home with AC">🏠 WFH+AC</button>
-            </div>
-
-            <button type="submit" id="log-submit" class="btn-create w-full mt-3" aria-label="Analyse activity with AI" aria-busy="false">
-              <span id="log-btn-label">⚡ ANALYSE WITH GEMINI AI</span>
-            </button>
+            <textarea id="log-input" class="log-area" rows="3" maxlength="500" aria-required="true" placeholder='e.g. "Drove 15km to work"'></textarea>
+            <button type="submit" id="log-submit" class="btn-create w-full mt-3">⚡ ANALYSE WITH GEMINI AI</button>
           </form>
         </div>
-      </div>
-
-      <!-- Annual Carbon Footprint (semi-circle chart) -->
-      <div class="card p-4 anim-fade-up d1">
-        <div class="sec-title mb-4" style="color:var(--text)">YOUR ANNUAL CARBON FOOTPRINT</div>
-        <div class="flex justify-center mb-4">
-          <canvas id="footprint-chart" width="240" height="140" role="img" aria-label="Annual carbon footprint semi-circle chart">
-            <p>Your browser does not support the canvas element. This is a footprint chart.</p>
-          </canvas>
-        </div>
-        <div class="space-y-2" id="footprint-legend">
-          <!-- Populated by JS -->
-          <div class="flex items-center justify-between text-xs" style="color:var(--text2)">
-            <span class="sec-label">Log activities to see breakdown</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Voice Assistant -->
-      <div class="card anim-fade-up d2">
-        <div class="p-4 border-b flex items-center justify-between" style="border-color:var(--border)">
-          <div class="flex items-center gap-2">
-            <div style="width:28px;height:28px;background:rgba(0,230,118,.12);border-radius:50%;display:flex;align-items:center;justify-content:center">
-              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="var(--green)" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
-            </div>
-            <div>
-              <div class="sec-title" style="font-size:.65rem">VOICE ASSISTANT</div>
-              <div class="sec-label" style="font-size:.55rem">PERSONALIZED SPEECH CONSOLE</div>
-            </div>
-          </div>
-          <button id="mic-btn" class="voice-btn" onclick="toggleVoice()" aria-label="Toggle voice assistant" aria-pressed="false">
-            <svg width="14" height="14" fill="white" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2H3v2a9 9 0 0 0 8 8.94V23h2v-2.06A9 9 0 0 0 21 12v-2h-2z"/></svg>
-          </button>
-        </div>
-        <div class="p-4">
-          <div class="insight-box mb-3" style="border-style:solid;font-style:italic;font-size:.78rem" id="voice-text">
-            "Hello! I am Carbon Trace Assistant. I can read your CO₂ scores, suggest saving tips, or provide AI insights. Click the microphone to activate."
-          </div>
-          <div class="flex items-center gap-1.5 mb-3 text-xs" style="color:var(--text2)">
-            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-            <span id="voice-status">Ready for your command…</span>
-          </div>
-          <div class="sec-label mb-2">VOICE CONTROLS / QUICK TRIGGERS</div>
-          <div class="flex gap-2 flex-wrap">
-            <button class="quick-trigger" onclick="voiceRead('score')" aria-label="Read my score">What is my score? ▷</button>
-            <button class="quick-trigger" onclick="voiceRead('tip')" aria-label="Give me a tip">Give me a tip ▷</button>
-            <button class="quick-trigger" onclick="voiceRead('insight')" aria-label="Read AI insights">AI Insights ▷</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Gemini AI Advisor -->
-      <div class="card anim-fade-up d3">
-        <div class="p-4 border-b flex items-center justify-between" style="border-color:var(--border)">
-          <div class="flex items-center gap-2">
-            <span style="color:var(--green)">✨</span>
-            <div class="sec-title" style="font-size:.65rem">GEMINI AI ADVISOR</div>
-          </div>
-          <button id="insights-btn" onclick="getInsights()" class="btn-create" style="padding:6px 14px;font-size:.62rem" aria-label="Get AI insights">
-            <span id="insights-label">🔄 GET INSIGHTS</span>
-          </button>
-        </div>
-        <div class="p-4">
-          <div class="insight-box" id="insights-box" style="min-height:80px">
-            <p style="color:var(--text2);text-align:center;padding:12px 0;font-size:.78rem">
-              Ready for AI recommendations!<br/>
-              <span style="color:var(--text3);font-size:.72rem">Log your activities first, then tap 'Get Insights' to query Gemini for an evaluation of your daily answers, lifestyle breakdown, and quick wins.</span>
-            </p>
-          </div>
-        </div>
-      </div>
+      </section>
+      
+      <section class="card p-4" aria-labelledby="chart-heading">
+        <h2 id="chart-heading" class="sec-title mb-4">YOUR ANNUAL CARBON FOOTPRINT</h2>
+        <canvas id="footprint-chart" width="240" height="140" role="img" aria-label="Annual carbon footprint semi-circle chart">
+            <p>Annual carbon footprint breakdown chart</p>
+        </canvas>
+      </section>
     </div>
 
-    <!-- RIGHT COLUMN (col 7) -->
     <div class="xl:col-span-7 space-y-3">
-
-      <!-- Sustainable Action Tracker Hub -->
-      <div class="card anim-fade-up" id="tracker">
-        <div class="p-5 border-b" style="border-color:var(--border)">
-          <div class="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <div class="text-xl font-bold text-white mb-1" style="font-family:'Space Grotesk',sans-serif">
-                🌿 Sustainable Action Tracker Hub
-              </div>
-              <p class="text-xs leading-relaxed" style="color:var(--text2)">
-                Commit to specific daily tasks to estimate your prospective reductions in real-time.
-              </p>
-            </div>
-            <div class="savings-display text-right">
-              <div class="sec-label">YOUR DAILY SAVINGS</div>
-              <div id="daily-savings" class="grad-num" style="font-family:'Space Grotesk';font-size:2rem;font-weight:800;line-height:1">0.0</div>
-              <div class="sec-label">KG CO₂e</div>
-              <div id="annual-savings" class="sec-label mt-0.5" style="color:var(--text2)">— Tons Saved/Year</div>
-            </div>
-          </div>
+      <section class="card" id="tracker" aria-labelledby="tracker-heading">
+        <div class="p-5 border-b">
+          <h2 id="tracker-heading" class="text-xl font-bold text-white">🌿 Sustainable Action Tracker Hub</h2>
         </div>
-
-        <!-- Custom commitment input -->
-        <div class="p-4 border-b" style="border-color:var(--border)">
-          <div class="flex items-center gap-2 mb-3">
-            <span style="color:var(--amber)">⚡</span>
-            <span class="sec-title" style="font-size:.62rem">DEFINE CUSTOM PERSONALIZED COMMITMENT</span>
-          </div>
-          <div class="flex gap-2 flex-wrap">
-            <input id="custom-action" class="commit-input" type="text" placeholder="e.g. Turn down hot water temperature" aria-label="Custom action description"/>
-            <label for="custom-cat" class="sr-only" style="display:none;">Select Category</label>
-            <select id="custom-cat" class="commit-input" style="max-width:120px" aria-label="Category">
-              <option>Transport</option>
-              <option selected>Energy</option>
-              <option>Food</option>
-              <option>Shopping</option>
-              <option>Other</option>
-            </select>
-            <input id="custom-kg" class="commit-input" type="number" min="0.1" max="20" step="0.1" value="1" style="max-width:70px" aria-label="CO2 saving in kg"/>
-            <span class="flex items-center text-xs" style="color:var(--text2)">KG</span>
-            <button class="btn-create" onclick="addCustomAction()" aria-label="Create and save custom commitment">CREATE &amp; SAVE</button>
-          </div>
-        </div>
-
-        <!-- Active actions list -->
         <div class="p-4">
-          <div class="flex items-center justify-between mb-3">
-            <span class="sec-title" style="font-size:.6rem;color:var(--text2)">ACTIVE ENVIRONMENTAL ACTIONS STATUS</span>
-            <span class="sec-title" style="font-size:.6rem;color:var(--text2)">SAVINGS IMPACT CONTRIBUTION</span>
-          </div>
-          <div id="actions-scroll">
-            <div id="actions-list" role="list" aria-label="Environmental actions checklist">
-              <!-- Populated by JS -->
-            </div>
-          </div>
-          <div id="no-actions" class="py-6 text-center text-xs" style="color:var(--text3)">
-            Log your activities to generate personalised eco-actions.
-          </div>
+            <form id="custom-action-form" onsubmit="event.preventDefault(); addCustomAction();">
+                <label for="custom-action" class="sr-only">Action Name</label>
+                <input id="custom-action" class="commit-input" type="text" placeholder="Custom action description"/>
+                <label for="custom-cat" class="sr-only">Select Category</label>
+                <select id="custom-cat" class="commit-input">
+                    <option>Transport</option>
+                    <option selected>Energy</option>
+                    <option>Food</option>
+                </select>
+                <button type="button" class="btn-create" onclick="addCustomAction()">CREATE & SAVE</button>
+            </form>
         </div>
-      </div>
-
-      <!-- Interactive Carbon Assessment -->
-      <div class="card anim-fade-up d1">
-        <div class="p-5 border-b" style="border-color:var(--border)">
-          <div class="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <div class="text-lg font-bold text-white" style="font-family:'Space Grotesk',sans-serif">
-                📋 Interactive Carbon Assessment
-              </div>
-              <p class="text-xs mt-1" style="color:var(--text2)">Customize the values below to evaluate your annual environmental footprint. Changes propagate instantly.</p>
-            </div>
-            <button onclick="resetAssessment()" class="btn-create" style="padding:8px 14px;font-size:.62rem;background:var(--muted2);color:var(--text)" aria-label="Reset to default settings">Reset Default Settings</button>
-          </div>
-        </div>
-
-        <div class="p-4 space-y-4" id="assessment-sliders">
-          <!-- Sliders populated by JS -->
-        </div>
-      </div>
-
+      </section>
     </div>
   </div>
-
-  <!-- ══ BADGE MILESTONES ══ -->
-  <div class="card anim-fade-up" id="badges">
-    <!-- Header -->
-    <div class="p-4 border-b" style="border-color:var(--border)">
-      <div class="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <div class="sec-title text-white" style="font-size:.72rem">🔒 DIGITAL BADGE MILESTONES</div>
-          <div class="sec-label mt-0.5">SUSTAINABILITY ACHIEVEMENTS</div>
-        </div>
-        <div id="badges-count" class="pill-green">0 OF 7 UNLOCKED</div>
-      </div>
-      <!-- Overall journey bar -->
-      <div class="mt-4">
-        <div class="flex items-center justify-between mb-1.5">
-          <span class="sec-label">Overall Badge Journey</span>
-          <span id="badge-pct" class="sec-label" style="color:var(--green)">0% Completed</span>
-        </div>
-        <div class="prog-track" style="height:8px">
-          <div id="badge-fill" class="prog-fill" style="width:0%;height:8px;background:linear-gradient(90deg,#22c55e,#00e676,#26c6da)"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Badge grid -->
-    <div class="p-4 grid grid-cols-2 md:grid-cols-4 gap-3" id="badge-grid">
-      <!-- Populated by JS -->
-    </div>
-  </div>
-
-  <!-- ══ WEEKLY EMISSION TRENDS ══ -->
-  <div class="card p-5 anim-fade-up" id="trends">
-    <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
-      <div>
-        <div class="flex items-center gap-2 mb-0.5">
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#22c55e" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/></svg>
-          <span class="sec-title text-white" style="font-size:.72rem">WEEKLY EMISSION TRENDS</span>
-        </div>
-        <div class="sec-label">REAL-TIME ACTIVITY SIMULATOR</div>
-      </div>
-      <div class="chart-toggle" role="group" aria-label="Chart view toggle">
-        <button id="btn-area" class="active" onclick="setChartType('area')" aria-pressed="true">AREA VIEW</button>
-        <button id="btn-line" onclick="setChartType('line')" aria-pressed="false">LINE VIEW</button>
-      </div>
-    </div>
-
-    <!-- Mini stat row -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-      <div class="card-dark p-3">
-        <div class="sec-label mb-1">Weekly Baseline</div>
-        <div id="wk-baseline" class="font-bold text-white" style="font-family:'Space Grotesk';font-size:1.1rem">— Kg CO₂e</div>
-      </div>
-      <div class="card-dark p-3">
-        <div class="sec-label mb-1">Weekly Actual</div>
-        <div id="wk-actual" class="font-bold" style="font-family:'Space Grotesk';font-size:1.1rem;color:var(--green)">— Kg CO₂e</div>
-      </div>
-      <div class="card-dark p-3">
-        <div class="sec-label mb-1">Weekly Deficit</div>
-        <div id="wk-deficit" class="font-bold" style="font-family:'Space Grotesk';font-size:1.1rem;color:var(--cyan)">— Kg Saved</div>
-      </div>
-      <div class="card-dark p-3">
-        <div class="sec-label mb-1">Reduction Rate</div>
-        <div id="wk-rate" class="font-bold" style="font-family:'Space Grotesk';font-size:1.1rem;color:var(--amber)">0% Off</div>
-      </div>
-    </div>
-
-    <canvas id="trend-chart" role="img" aria-label="Weekly emission trends chart" style="max-height:240px">
-      <p>Your browser does not support the canvas element. This is a trend chart.</p>
-    </canvas>
-  </div>
-
 </main>
 
-<!-- TOAST -->
-<div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
-
-<!-- UPDATED SCRIPT PATH FOR VERCEL DEPLOYMENT VIA FASTAPI -->
 <script src="/frontend/app.js" defer></script>
 </body>
 </html>
