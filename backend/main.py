@@ -6,19 +6,15 @@ This module initializes the FastAPI application with:
 - Structured ``uvicorn``-compatible logging
 - API health-check endpoint (``GET /health``)
 - Activity log router (``/api/logs``)
-
-Usage:
-    # Development (auto-reload):
-    uvicorn backend.main:app --reload --port 8000
-
-    # Production:
-    uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 2
+- Frontend static files serving
 """
 
 from __future__ import annotations
 
 import logging
 import os
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -45,16 +41,12 @@ logger = logging.getLogger(__name__)
 # Application factory
 # ---------------------------------------------------------------------------
 
-
 def create_app() -> FastAPI:
     """
     Create and configure the FastAPI application instance.
 
     Applies CORS middleware, registers the activity log router, and attaches
     the health-check endpoint before returning the configured ``FastAPI`` app.
-
-    Returns:
-        FastAPI: Fully configured application ready to be served by Uvicorn.
     """
     app = FastAPI(
         title="Carbon Footprint Tracker API",
@@ -119,21 +111,26 @@ def create_app() -> FastAPI:
         response_model=HealthResponse,
         tags=["health"],
         summary="Service health check",
-        description=(
-            "Returns a lightweight status payload confirming the API is running. "
-            "Suitable for load-balancer and monitoring pings."
-        ),
     )
     async def health_check() -> HealthResponse:
-        """
-        GET /health
-
-        Returns a simple status payload confirming the API is running.
-
-        Returns:
-            HealthResponse: ``{ "status": "ok", "version": "1.0.0", "message": "..." }``
-        """
         return HealthResponse()
+
+    # ------------------------------------------------------------------
+    # Frontend Serving (Vercel & Local)
+    # ------------------------------------------------------------------
+    # Compute the absolute path to the frontend directory
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+
+    # Ensure directory exists before mounting to avoid server startup errors
+    if os.path.isdir(FRONTEND_DIR):
+        app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+
+        @app.get("/", include_in_schema=False)
+        async def serve_dashboard():
+            return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+    else:
+        logger.warning(f"Frontend directory not found at {FRONTEND_DIR}. Dashboard will not be served.")
 
     logger.info("Carbon Footprint Tracker API initialised (v1.0.0).")
     return app
@@ -144,7 +141,6 @@ def create_app() -> FastAPI:
 # ---------------------------------------------------------------------------
 
 app = create_app()
-
 
 if __name__ == "__main__":
     import uvicorn
