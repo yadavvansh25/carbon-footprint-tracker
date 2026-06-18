@@ -141,8 +141,13 @@ def create_app() -> FastAPI:
     if os.path.isdir(FRONTEND_DIR):
         app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
 
-        @app.get("/", include_in_schema=False)
-        async def serve_dashboard():
+        @app.get("/", include_in_schema=False, response_class=FileResponse)
+        async def serve_dashboard() -> FileResponse:
+            """
+            Serves the frontend dashboard entry point.
+            Returns:
+                FileResponse: The index.html file representing the UI.
+            """
             return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
     else:
         logger.warning(f"Frontend directory not found at {FRONTEND_DIR}. Dashboard will not be served.")
