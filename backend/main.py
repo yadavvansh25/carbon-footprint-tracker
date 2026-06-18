@@ -6,7 +6,7 @@ Implements robust security headers, structured logging, and type-safe API routin
 from __future__ import annotations
 
 import logging
-import os
+from pathlib import Path
 from typing import Final
 
 from dotenv import load_dotenv
@@ -73,7 +73,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(SecurityHeadersMiddleware)
 
-    # 3. Global Exception Handler (Robustness & Code Quality)
+    # 3. Global Exception Handler
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         logger.error(f"Unhandled exception: {str(exc)}")
@@ -90,17 +90,19 @@ def create_app() -> FastAPI:
         """Verifies service health."""
         return HealthResponse()
 
-    # 5. Frontend Serving
-    base_dir: Final = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    frontend_dir: Final = os.path.join(base_dir, "frontend")
+    # 5. Frontend Serving (using Pathlib)
+    base_dir: Final = Path(__file__).resolve().parent.parent
+    frontend_dir: Final = base_dir / "frontend"
 
-    if os.path.isdir(frontend_dir):
-        app.mount("/frontend", StaticFiles(directory=frontend_dir), name="frontend")
+    if frontend_dir.is_dir():
+        app.mount("/frontend", StaticFiles(directory=str(frontend_dir)), name="frontend")
 
         @app.get("/", include_in_schema=False, response_class=FileResponse)
         async def serve_dashboard() -> FileResponse:
             """Serves the dashboard index file."""
-            return FileResponse(os.path.join(frontend_dir, "index.html"))
+            return FileResponse(frontend_dir / "index.html")
+    else:
+        logger.warning(f"Frontend directory not found at {frontend_dir}. Dashboard will not be served.")
 
     return app
 
