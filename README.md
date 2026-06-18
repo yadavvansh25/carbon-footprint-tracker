@@ -1,4 +1,11 @@
 # 🌍 Carbon Trace System: Footprint Tracker
+## 🎯 Problem Statement Alignment: Challenge 3
+This project is a direct solution for **Challenge 3: Carbon Footprint Awareness Platform** in the **PromptWars Hackathon** by **Hack2skill & Google for Developers**. 
+
+**How it aligns with the core requirements:**
+1. **Awareness:** It translates natural language daily activities into quantifiable CO2e metrics using Google Gemini 1.5 Flash.
+2. **Actionable Recommendations:** It generates personalized, feasible daily commitments to reduce the user's carbon footprint.
+3. **Tracking:** Features a gamified dashboard with a 'Sustainable Action Tracker Hub', Weekly Trends, and Milestone Badges to ensure long-term user retention and genuine environmental impact.
 
 > **Hack2skill PromptWars Hackathon Submission**
 > **Category: Challenge 3 - Carbon Footprint Awareness Platform**
