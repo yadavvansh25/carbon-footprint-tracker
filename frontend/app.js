@@ -2,15 +2,15 @@
  * @fileoverview Footprint — EcoTrack-style complete app logic
  *
  * Sections:
- *  1. Config & state
- *  2. Persistence (localStorage)
- *  3. Toast
- *  4. Form / API
- *  5. Dashboard rendering (top stats, trackers)
- *  6. Action Tracker Hub (checklist + custom commitments)
- *  7. Badge Milestones
- *  8. Weekly Trends chart
- *  9. Semi-circle Annual Footprint chart
+ * 1. Config & state
+ * 2. Persistence (localStorage)
+ * 3. Toast
+ * 4. Form / API
+ * 5. Dashboard rendering (top stats, trackers)
+ * 6. Action Tracker Hub (checklist + custom commitments)
+ * 7. Badge Milestones
+ * 8. Weekly Trends chart
+ * 9. Semi-circle Annual Footprint chart
  * 10. Interactive Assessment sliders
  * 11. Voice Assistant (Web Speech API)
  * 12. Gemini AI Advisor (re-summarise habit_analysis)
@@ -23,7 +23,8 @@
 // 1. CONFIG & CONSTANTS
 // ═══════════════════════════════════════════════════════════════
 
-const API_BASE     = 'http://127.0.0.1:8000';
+// Updated API_BASE for Vercel deployment (uses relative path)
+const API_BASE     = '';
 const LS_WEEKLY    = 'fp_eco_weekly_v1';
 const LS_STREAK    = 'fp_eco_streak_v1';
 const LS_LAST      = 'fp_eco_last_v1';
@@ -62,10 +63,10 @@ const ASSESS_DEFAULT = [
 
 // Badge definitions
 const BADGES = [
-  { id:'pledge',   icon:'🌐', color:'#5c6bc0', bg:'rgba(92,107,192,.15)', title:'PLEDGE PIONEER',   sub:'CALCULATE FOOTPRINT',  req:'Submit your first carbon footprint analysis.',     cond: s => s.totalLogs >= 1,           saving: 0   },
-  { id:'eco-nov',  icon:'💚', color:'#00c853', bg:'rgba(0,200,83,.15)',   title:'ECO NOVICE',       sub:'1+ COMMITTED HABIT',   req:'Commit to at least one daily eco-action.',         cond: s => s.checkedActions >= 1,      saving: 0   },
-  { id:'habit',    icon:'🔥', color:'#ff7043', bg:'rgba(255,112,67,.15)', title:'HABIT WARRIOR',    sub:'STREAK >= 5 DAYS',     req:'Maintain a carbon-savvy active streak of 5+ days.',cond: s => s.streak >= 5,             saving: 0   },
-  { id:'carbon-c', icon:'🛡️', color:'#ec407a', bg:'rgba(236,64,122,.15)', title:'CARBON CRUSADER',  sub:'SAVE >= 0.5 TONS/YR',  req:'Hit an annual carbon offset rate of over 0.5T.',   cond: s => s.annualSaved >= 0.5,      saving: .5  },
+  { id:'pledge',   icon:'🌐', color:'#5c6bc0', bg:'rgba(92,107,192,.15)', title:'PLEDGE PIONEER',   sub:'CALCULATE FOOTPRINT',  req:'Submit your first carbon footprint analysis.',     cond: s => s.totalLogs >= 1,            saving: 0   },
+  { id:'eco-nov',  icon:'💚', color:'#00c853', bg:'rgba(0,200,83,.15)',   title:'ECO NOVICE',       sub:'1+ COMMITTED HABIT',   req:'Commit to at least one daily eco-action.',         cond: s => s.checkedActions >= 1,       saving: 0   },
+  { id:'habit',    icon:'🔥', color:'#ff7043', bg:'rgba(255,112,67,.15)', title:'HABIT WARRIOR',    sub:'STREAK >= 5 DAYS',     req:'Maintain a carbon-savvy active streak of 5+ days.',cond: s => s.streak >= 5,               saving: 0   },
+  { id:'carbon-c', icon:'🛡️', color:'#ec407a', bg:'rgba(236,64,122,.15)', title:'CARBON CRUSADER',  sub:'SAVE >= 0.5 TONS/YR',  req:'Hit an annual carbon offset rate of over 0.5T.',   cond: s => s.annualSaved >= 0.5,        saving: .5  },
   { id:'champion', icon:'🏆', color:'#ffab40', bg:'rgba(255,171,64,.15)', title:'CLIMATE CHAMPION', sub:'SAVE >= 1.5 TONS/YR',  req:'Achieve direct savings of 1.5 tons of annual offsets.', cond: s => s.annualSaved >= 1.5, saving: 1.5 },
   { id:'forest',   icon:'🌳', color:'#00e676', bg:'rgba(0,230,118,.15)',  title:'FOREST GUARDIAN',  sub:'TREES POWER >= 40/YR', req:'Equivalent saving potential matches 40+ growing saplings.', cond: s => s.treePower >= 40, saving: 0   },
   { id:'titan',    icon:'⚡', color:'#78909c', bg:'rgba(120,144,156,.12)',title:'GREEN TITAN',      sub:'15+ STREAK & 1.0T+ SAVED', req:'Ultimate: 15+ day streak and 1.0 ton CO₂e annual offsets.',cond: s => s.streak>=15 && s.annualSaved>=1, saving:1},
@@ -331,8 +332,6 @@ function renderActionsList() {
         </div>
       </div>`;
   }).join('');
-
-  // Re-attach listeners (already using onclick in element)
 }
 
 function toggleAction(id, e) {
@@ -411,7 +410,6 @@ function renderBadges() {
     const isUnlocked = b.cond(bs);
     return `
       <div class="badge-card${isUnlocked?'':' locked'}" aria-label="${b.title} badge: ${isUnlocked?'Unlocked':'Locked'}">
-        <!-- Header row -->
         <div class="flex items-center justify-between gap-2 mb-3">
           <div class="flex items-center gap-2.5">
             <div class="badge-icon" style="background:${b.bg};border:1.5px solid ${isUnlocked?b.color:'#243328'}">
@@ -430,7 +428,6 @@ function renderBadges() {
 
         <p class="text-xs leading-relaxed mb-3" style="color:${isUnlocked?'var(--text2)':'var(--text3)'};font-size:.73rem">${b.req}</p>
 
-        <!-- Bottom progress line -->
         <div class="prog-track" style="height:2px;margin-bottom:8px">
           <div class="prog-fill" style="height:2px;width:${isUnlocked?100:0}%;background:${b.color}"></div>
         </div>
@@ -716,11 +713,11 @@ function voiceRead(type) {
     score:   co2 ? `Your today's carbon score is ${fmt(co2,1)} kilograms of CO₂ equivalent. Your daily savings from committed actions is ${saved} kilograms.`
                  : `No score recorded yet. Please log your activities first.`,
     tip:     state.currentTips[0]
-               ? `Here is a tip: ${state.currentTips[0].title}. ${state.currentTips[0].description}`
-               : `No tips available yet. Log an activity to get personalised eco-actions.`,
+                 ? `Here is a tip: ${state.currentTips[0].title}. ${state.currentTips[0].description}`
+                 : `No tips available yet. Log an activity to get personalised eco-actions.`,
     insight: state.lastAnalysis?.habit_analysis
-               ? state.lastAnalysis.habit_analysis
-               : `No insights available yet. Analyse your activities with Gemini AI first.`,
+                 ? state.lastAnalysis.habit_analysis
+                 : `No insights available yet. Analyse your activities with Gemini AI first.`,
   };
   const text = texts[type] || texts.intro;
   $id('voice-text').textContent = `"${text}"`;
