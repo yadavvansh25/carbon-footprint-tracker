@@ -1,24 +1,27 @@
 """
-Carbon Footprint Tracker — FastAPI application entry point.
+Carbon Footprint Tracker — FastAPI Entry Point.
+Implements robust security headers, structured logging, and type-safe API routing.
 """
 
 from __future__ import annotations
 
 import logging
 import os
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+from typing import Final
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from backend.routes.logs import router as logs_router
 from backend.schemas.models import HealthResponse
 
 # ---------------------------------------------------------------------------
-# Bootstrap
+# Configuration & Logging
 # ---------------------------------------------------------------------------
 load_dotenv()
 
@@ -27,84 +30,68 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)-8s | %(name)s — %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-logger = logging.getLogger(__name__)
-
+logger: Final = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Application factory
+# Application Factory
 # ---------------------------------------------------------------------------
 
 def create_app() -> FastAPI:
+    """
+    Factory to create and configure the FastAPI application.
+
+    Returns:
+        FastAPI: The configured application instance.
+    """
     app = FastAPI(
         title="Carbon Footprint Tracker API",
         version="1.0.0",
+        description="High-performance AI backend for carbon tracking.",
         docs_url="/docs",
-        redoc_url="/redoc",
+        redoc_url="/redoc"
     )
 
-    # ------------------------------------------------------------------
-    # CORS — Restricted to specific production/development origins
-    # ------------------------------------------------------------------
-    raw_origins: str = os.getenv(
-        "ALLOWED_ORIGINS",
-        "http://localhost:3000,http://127.0.0.1:3000"
-    )
-    allowed_origins: list[str] = [o.strip() for o in raw_origins.split(",") if o.strip()]
-
+    # 1. CORS Middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=allowed_origins,
+        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
         allow_credentials=False,
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type", "Accept"],
     )
 
-    # ------------------------------------------------------------------
-    # Enhanced Security Headers (100% Security Score Target)
-    # ------------------------------------------------------------------
+    # 2. Strict Security Middleware
     class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-        async def dispatch(self, request, call_next):
-            response = await call_next(request)
-            # Prevent MIME type sniffing
+        async def dispatch(self, request: Request, call_next) -> Response:
+            response: Response = await call_next(request)
             response.headers["X-Content-Type-Options"] = "nosniff"
-            # Prevent clickjacking
             response.headers["X-Frame-Options"] = "DENY"
-            # Prevent XSS attacks
             response.headers["X-XSS-Protection"] = "1; mode=block"
-            # Enforce HTTPS
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-            # Content Security Policy (strict)
             response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
-            # Referrer Policy
-            response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
             return response
 
     app.add_middleware(SecurityHeadersMiddleware)
 
-    # ------------------------------------------------------------------
-    # Routers
-    # ------------------------------------------------------------------
+    # 3. Routes
     app.include_router(logs_router)
 
-    # ------------------------------------------------------------------
-    # Health-check
-    # ------------------------------------------------------------------
     @app.get("/health", response_model=HealthResponse, tags=["health"])
     async def health_check() -> HealthResponse:
+        """Verifies service health."""
         return HealthResponse()
 
-    # ------------------------------------------------------------------
-    # Frontend Serving
-    # ------------------------------------------------------------------
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+    # 4. Frontend Serving
+    base_dir: Final = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    frontend_dir: Final = os.path.join(base_dir, "frontend")
 
-    if os.path.isdir(FRONTEND_DIR):
-        app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+    if os.path.isdir(frontend_dir):
+        app.mount("/frontend", StaticFiles(directory=frontend_dir), name="frontend")
 
         @app.get("/", include_in_schema=False, response_class=FileResponse)
         async def serve_dashboard() -> FileResponse:
-            return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+            """Serves the dashboard index file."""
+            return FileResponse(os.path.join(frontend_dir, "index.html"))
 
     return app
 
