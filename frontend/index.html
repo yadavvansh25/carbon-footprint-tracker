@@ -559,8 +559,9 @@
       <div class="card p-4 anim-fade-up d1">
         <div class="sec-title mb-4" style="color:var(--text)">YOUR ANNUAL CARBON FOOTPRINT</div>
         <div class="flex justify-center mb-4">
-          <canvas id="footprint-chart" width="240" height="140"
-                  role="img" aria-label="Annual carbon footprint semi-circle chart"></canvas>
+          <canvas id="footprint-chart" width="240" height="140" role="img" aria-label="Annual carbon footprint semi-circle chart">
+            <p>Your browser does not support the canvas element. This is a footprint chart.</p>
+          </canvas>
         </div>
         <div class="space-y-2" id="footprint-legend">
           <!-- Populated by JS -->
@@ -657,6 +658,7 @@
           </div>
           <div class="flex gap-2 flex-wrap">
             <input id="custom-action" class="commit-input" type="text" placeholder="e.g. Turn down hot water temperature" aria-label="Custom action description"/>
+            <label for="custom-cat" class="sr-only" style="display:none;">Select Category</label>
             <select id="custom-cat" class="commit-input" style="max-width:120px" aria-label="Category">
               <option>Transport</option>
               <option selected>Energy</option>
@@ -774,7 +776,9 @@
       </div>
     </div>
 
-    <canvas id="trend-chart" role="img" aria-label="Weekly emission trends chart" style="max-height:240px"></canvas>
+    <canvas id="trend-chart" role="img" aria-label="Weekly emission trends chart" style="max-height:240px">
+      <p>Your browser does not support the canvas element. This is a trend chart.</p>
+    </canvas>
   </div>
 
 </main>
