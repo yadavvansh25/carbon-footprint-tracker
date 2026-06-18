@@ -20,6 +20,8 @@ As part of the **PromptWars** challenge, the core logic relies on highly optimiz
 - **Chain of Thought:** The prompt instructs the AI to first analyze the activity, then calculate raw values, and finally generate actionable tips.
 
 ---
+## 🏗️ System Architecture
+[Frontend (HTML/JS/Tailwind)] <---> [API Gateway (FastAPI)] <---> [AI Engine (Gemini 1.5)]
 
 ## Directory Structure
 
