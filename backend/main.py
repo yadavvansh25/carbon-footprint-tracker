@@ -12,7 +12,7 @@ from typing import Final
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
@@ -73,7 +73,16 @@ def create_app() -> FastAPI:
 
     app.add_middleware(SecurityHeadersMiddleware)
 
-    # 3. Routes
+    # 3. Global Exception Handler (Robustness & Code Quality)
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        logger.error(f"Unhandled exception: {str(exc)}")
+        return JSONResponse(
+            status_code=500,
+            content={"message": "Internal Server Error", "detail": "An unexpected error occurred."}
+        )
+
+    # 4. Routes
     app.include_router(logs_router)
 
     @app.get("/health", response_model=HealthResponse, tags=["health"])
@@ -81,7 +90,7 @@ def create_app() -> FastAPI:
         """Verifies service health."""
         return HealthResponse()
 
-    # 4. Frontend Serving
+    # 5. Frontend Serving
     base_dir: Final = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     frontend_dir: Final = os.path.join(base_dir, "frontend")
 
