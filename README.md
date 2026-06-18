@@ -1,6 +1,9 @@
-# 🌍 Footprint — Personalized Carbon Footprint Tracker
+# 🌍 Carbon Trace System: Footprint Tracker
 
-> AI-powered hackathon project. Log daily activities in plain English and get real-time carbon footprint insights plus personalised eco-actions — powered by Google Gemini 1.5 Flash.
+> **Hack2skill PromptWars Hackathon Submission**
+> **Category: Challenge 3 - Carbon Footprint Awareness Platform**
+> 
+> An AI-powered sustainability platform designed to solve the challenge of tracking and reducing personal carbon emissions. Log daily activities in plain English and get real-time carbon footprint insights, environmental impact analytics, and personalized mitigation eco-actions — powered by Google Gemini 1.5 Flash.
 
 ---
 
